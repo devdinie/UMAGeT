@@ -16,23 +16,31 @@
 #
 # SPDX-License-Identifier: EPL-2.0
 #
+import os
 
-DATA_PATH="../data/decathlon/Task01_BrainTumour/"
-SAVED_MODEL_NAME="3d_unet_decathlon"
+ROOT_DIR          = os.path.join(os.path.dirname(__file__),"..")
+DATA_PATH         = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
 
-EPOCHS=40
-BATCH_SIZE=8
+SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
+SAVED_MODEL2_NAME = "UNET2_SEGMENT"
+
+EPOCHS     =100
+BATCH_SIZE =1
 TILE_HEIGHT=144
-TILE_WIDTH=144
-TILE_DEPTH=144
+TILE_WIDTH =144
+TILE_DEPTH =144
+
 NUMBER_INPUT_CHANNELS=1
 NUMBER_OUTPUT_CLASSES=1
 
-TRAIN_TEST_SPLIT=0.80
-VALIDATE_TEST_SPLIT=0.50
+TRAIN_TEST_SPLIT   =0.80
+VALIDATE_TEST_SPLIT=0.20
 
-PRINT_MODEL=False
-FILTERS=16
+PRINT_MODEL   =False
+FILTERS       =16
 USE_UPSAMPLING=False
 
-RANDOM_SEED=816
+RANDOM_SEED   =816
+
+MODE     ="train"
+AUGMENT  =False

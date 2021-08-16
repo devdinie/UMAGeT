@@ -1,31 +1,15 @@
-#
-# -*- coding: utf-8 -*-
-#
-# Copyright (c) 2020 Intel Corporation
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# SPDX-License-Identifier: EPL-2.0
-#
-import tensorflow as tf   # TensorFlow 2
-from tensorflow import keras as K
 
 import os
 import datetime
 
-from argparser import args
-from dataloader import DatasetGenerator
-from model import dice_coef, soft_dice_coef, dice_loss, unet_3d
+import tensorflow as tf  
+
+from tensorflow import keras as K
+
+from argparser   import args
+from prepdataset import prepdata
+from dataloader  import DatasetGenerator
+from model       import dice_coef, soft_dice_coef, dice_loss, unet_3d
 
 
 def test_intel_tensorflow():
@@ -33,111 +17,210 @@ def test_intel_tensorflow():
     Check if Intel version of TensorFlow is installed
     """
     import tensorflow as tf
-
-    print("We are using Tensorflow version {}".format(tf.__version__))
-
-    major_version = int(tf.__version__.split(".")[0])
-    if major_version >= 2:
-        from tensorflow.python import _pywrap_util_port
-        print("Intel-optimizations (DNNL) enabled:",
-              _pywrap_util_port.IsMklEnabled())
-    else:
-        print("Intel-optimizations (DNNL) enabled:",
-              tf.pywrap_tensorflow.IsMklEnabled())
-
-print(args)
-test_intel_tensorflow()  # Prints if Intel-optimized TensorFlow is used.
+ 
+    print("Tensorflow version {}".format(tf.__version__))
+    
+    from tensorflow.python import _pywrap_util_port
+    print("Intel-optimizations (DNNL) enabled:",_pywrap_util_port.IsMklEnabled())
+    
+test_intel_tensorflow()
 
 """
-crop_dim = Dimensions to crop the input tensor
-"""
-crop_dim = (args.tile_height, args.tile_width,
-            args.tile_depth, args.number_input_channels)
+# region DATA PREP
+print("------------------ DATA PREP (IP): BEGIN  ------------------")
+prepdata(data_path=args.data_path)
+print("------------------ DATA PREP (IP):  DONE  ------------------")
+# endregion DATA PREP
 
+print("*************************************************************")
+# region NETWORK1
 """
-1. Load the dataset
-"""
-brats_data = DatasetGenerator(crop_dim,
-                              data_path=args.data_path,
-                              batch_size=args.batch_size,
-                              train_test_split=args.train_test_split,
-                              validate_test_split=args.validate_test_split,
-                              number_output_classes=args.number_output_classes,
-                              random_seed=args.random_seed)
 
-brats_data.print_info()  # Print dataset information
 
-"""
-2. Create the TensorFlow model
-"""
-model = unet_3d(input_dim=crop_dim, filters=args.filters,
-                number_output_classes=args.number_output_classes,
-                use_upsampling=args.use_upsampling,
-                concat_axis=-1, model_name=args.saved_model_name)
+# region NETWORK1: DATA_GENERATOR
+
+print("------------------ DATA GENERATOR1:  BEGIN ------------------")
+input_dim = (args.tile_height, args.tile_width,args.tile_depth)
+augment = True
+data1 = DatasetGenerator(input_dim, data_path=os.path.join(args.data_path,"data_net1"), batch_size=args.batch_size,
+                        train_test_split=args.train_test_split, validate_test_split=args.validate_test_split, 
+                        number_output_classes=args.number_output_classes,random_seed=args.random_seed,augment=augment)
+data1.print_info()
+print("------------------ DATA GENERATOR1:  DONE  ------------------")
+
+print("*************************************************************")
+
+# endregion NETWORK1: DATA_GENERATOR
+
+
+# region NETWORK1: CREATE_MODEL
+
+print("------------------ CREATING MODEL1: BEGIN  ------------------")
+# Create tensorflow model
+input_dim = (args.tile_height, args.tile_width,args.tile_depth, args.number_input_channels)
+
+model1 = unet_3d(input_dim=input_dim, filters=args.filters,number_output_classes=args.number_output_classes,
+                use_upsampling=args.use_upsampling, concat_axis=-1, model_name=args.saved_model1_name)
 
 local_opt = K.optimizers.Adam()
-model.compile(loss=dice_loss,
-              metrics=[dice_coef, soft_dice_coef],
-              optimizer=local_opt)
+model1.compile(loss=dice_loss,metrics=[dice_coef, soft_dice_coef],optimizer=local_opt)
+checkpoint = K.callbacks.ModelCheckpoint(args.saved_model1_name, verbose=1, save_best_only=True)
+print("Tensorflow model created")
 
-checkpoint = K.callbacks.ModelCheckpoint(args.saved_model_name,
-                                         verbose=1,
-                                         save_best_only=True)
+logs_dir = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+tb_logs  = K.callbacks.TensorBoard(log_dir=logs_dir)
+callbacks= [checkpoint, tb_logs]
+print("------------------ CREATING MODEL1:  DONE  ------------------")
 
-# TensorBoard
-logs_dir = os.path.join(
-    "logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-tb_logs = K.callbacks.TensorBoard(log_dir=logs_dir)
+print("*************************************************************")
 
-callbacks = [checkpoint, tb_logs]
+# endregion NETWORK1: CREATE_MODEL
 
-"""
-3. Train the model
-"""
-steps_per_epoch = brats_data.num_train // args.batch_size
-model.fit(brats_data.get_train(), epochs=args.epochs,
-          steps_per_epoch=steps_per_epoch,
-          validation_data=brats_data.get_validate(),
-          callbacks=callbacks,
-          verbose=1)
 
-"""
-4. Load best model on validation dataset and run on the test
-dataset to show generalizability
-"""
-best_model = K.models.load_model(args.saved_model_name,
+# region NETWORK1: TRAIN_MODEL
+
+print("------------------ TRAINING MODEL1: BEGIN  ------------------")
+# Train the model
+steps_per_epoch = data1.num_train // args.batch_size
+model1.fit(data1.get_train(), epochs=args.epochs, steps_per_epoch=steps_per_epoch, validation_data=data1.get_validate(), callbacks=callbacks, verbose=1)
+print("------------------ TRAINING MODEL1:  DONE  ------------------")
+
+print("*************************************************************")
+
+# endregion NETWORK1: TRAIN_MODEL
+
+
+# region NETWORK1: SAVE_EVALUATE_MODEL
+
+print("------------------ BEST MDL1 EVAL|SAVE:BEG ------------------")
+best_model1 = K.models.load_model(args.saved_model1_name, 
                                  custom_objects={"dice_loss": dice_loss,
-                                                 "dice_coef": dice_coef,
+                                                 "dice_coef": dice_coef, 
                                                  "soft_dice_coef": soft_dice_coef})
-
-print("\n\nEvaluating best model on the testing dataset.")
+best_model1.compile(loss=dice_loss,metrics=[dice_coef, soft_dice_coef],optimizer=local_opt)
+print("Evaluating best model on the testing dataset.")
 print("=============================================")
-loss, dice_coef, soft_dice_coef = best_model.evaluate(brats_data.get_test())
-
+loss, dice_coef, soft_dice_coef = best_model1.evaluate(data1.get_test())
 print("Average Dice Coefficient on testing dataset = {:.4f}".format(dice_coef))
 
-"""
-5. Save the best model without the custom objects (dice, etc.)
-   NOTE: You should be able to do .load_model(compile=False), but this
-   appears to currently be broken in TF2. To compensate, we're
-   just going to re-compile the model without the custom objects and
-   save as a new model (with suffix "_final")
-"""
-final_model_name = args.saved_model_name + "_final"
-best_model.compile(loss="binary_crossentropy", metrics=["accuracy"],
-                   optimizer="adam")
-K.models.save_model(best_model, final_model_name,
-                    include_optimizer=False)
+final_model1_name = args.saved_model1_name + "_final"
+best_model1.compile(loss="binary_crossentropy", metrics=["accuracy"],optimizer="adam")
+K.models.save_model(best_model1, final_model1_name,include_optimizer=False)
+print("------------------ BEST MDL1 EVAL|SAVE:DNE ------------------")
 
-"""
-Converting the model to OpenVINO
-"""
+print("*************************************************************")
+
+#endregion NETWORK1: SAVE_EVALUATE_MODEL
+
+
+# region NETWORK1: CONVERT_MODEL
+print("------------------ CONVERTING MODEL1: BEGIN  ------------------")
 print("\n\nConvert the TensorFlow model to OpenVINO by running:\n")
 print("source /opt/intel/openvino/bin/setupvars.sh")
 print("python $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo_tf.py \\")
-print("       --saved_model_dir {} \\".format(final_model_name))
-print("       --model_name {} \\".format(args.saved_model_name))
+print("       --saved_model_dir {} \\".format(final_model1_name))
+print("       --model_name {} \\".format(args.saved_model1_name))
 print("       --batch 1  \\")
 print("       --output_dir {} \\".format(os.path.join("openvino_models", "FP32")))
 print("       --data_type FP32\n\n")
+print("------------------ CONVERTING MODEL1:  DONE  ------------------")
 
+# endregion NETWORK1: CONVERT_MODEL
+print("==================  NETWORK 1: COMPLETE.  ==================") 
+
+
+# endregion NETWORK1
+
+
+
+# region NETWORK2
+"""
+# region NETWORK2: DATA_GENERATOR
+print("------------------ DATA GENERATOR2:  BEGIN ------------------")
+input_dim = (args.tile_height, args.tile_width,args.tile_depth)
+augment = False
+data2 = DatasetGenerator(input_dim, data_path=os.path.join(args.data_path,"data_net2"), batch_size=args.batch_size,
+                        train_test_split=args.train_test_split, validate_test_split=args.validate_test_split, 
+                        number_output_classes=args.number_output_classes,random_seed=args.random_seed,augment=augment)
+data2.print_info()
+print("------------------ DATA GENERATOR2:  DONE  ------------------")
+
+print("*************************************************************")
+"""
+# endregion NETWORK2: DATA_GENERATOR
+
+"""
+# region NETWORK2: CREATE_MODEL
+print("------------------ CREATING MODEL2: BEGIN  ------------------")
+# Create tensorflow model
+input_dim = (args.tile_height, args.tile_width,args.tile_depth, args.number_input_channels)
+
+model2 = unet_3d(input_dim=input_dim, filters=args.filters,number_output_classes=args.number_output_classes,
+                use_upsampling=args.use_upsampling, concat_axis=-1, model_name=args.saved_model2_name)
+
+local_opt = K.optimizers.Adam()
+model2.compile(loss=dice_loss,metrics=[dice_coef, soft_dice_coef],optimizer=local_opt)
+checkpoint2 = K.callbacks.ModelCheckpoint(args.saved_model2_name, verbose=1, save_best_only=True)
+print("Tensorflow model created")
+
+logs_dir2 = os.path.join("logs", datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+tb_logs2  = K.callbacks.TensorBoard(log_dir=logs_dir2)
+callbacks2= [checkpoint2, tb_logs2]
+print("------------------ CREATING MODEL2:  DONE  ------------------")
+
+print("*************************************************************")
+
+# endregion NETWORK2: CREATE_MODEL
+
+
+# region NETWORK2: TRAIN_MODEL
+print("------------------ TRAINING MODEL2: BEGIN  ------------------")
+# Train the model
+steps_per_epoch2 = data2.num_train // args.batch_size
+model2.fit(data2.get_train(), epochs=args.epochs, steps_per_epoch=steps_per_epoch2, validation_data=data2.get_validate(), callbacks=callbacks2, verbose=1)
+print("------------------ TRAINING MODEL2:  DONE  ------------------")
+
+print("*************************************************************")
+
+# endregion NETWORK2: TRAIN_MODEL
+
+
+# region NETWORK2: SAVE_EVALUATE_MODEL
+print("------------------ BEST MDL EVAL|SAVE2:BEG ------------------")
+best_model2 = K.models.load_model(args.saved_model2_name, 
+                                 custom_objects={"dice_loss": dice_loss,
+                                                 "dice_coef": dice_coef, 
+                                                 "soft_dice_coef": soft_dice_coef})
+best_model2.compile(loss=dice_loss,metrics=[dice_coef, soft_dice_coef],optimizer=local_opt)
+print("Evaluating best model on the testing dataset.")
+print("=============================================")
+loss, dice_coef, soft_dice_coef = best_model2.evaluate(data2.get_test())
+print("Average Dice Coefficient on testing dataset = {:.4f}".format(dice_coef))
+
+final_model2_name = args.saved_model2_name + "_final"
+best_model2.compile(loss="binary_crossentropy", metrics=["accuracy"],optimizer="adam")
+K.models.save_model(best_model2, final_model2_name,include_optimizer=False)
+print("------------------ BEST MDL EVAL|SAVE2:DNE ------------------")
+
+print("*************************************************************")
+
+# endregion NETWORK2: SAVE_EVALUATE_MODEL
+
+
+# region NETWORK2: CONVERT_MODEL
+print("------------------ CONVERTING MODEL2: BEGIN  ------------------")
+print("\n\nConvert the TensorFlow model to OpenVINO by running:\n")
+print("source /opt/intel/openvino/bin/setupvars.sh")
+print("python $INTEL_OPENVINO_DIR/deployment_tools/model_optimizer/mo_tf.py \\")
+print("       --saved_model_dir {} \\".format(final_model2_name))
+print("       --model_name {} \\".format(args.saved_model2_name))
+print("       --batch 1  \\")
+print("       --output_dir {} \\".format(os.path.join("openvino_models", "FP32")))
+print("       --data_type FP32\n\n")
+print("------------------ CONVERTING MODEL2:  DONE  ------------------")
+# endregion NETWORK2: CONVERT_MODEL
+
+# endregion NETWORK2
+
+print("==================  NETWORK 2: COMPLETE.  ==================")
+"""

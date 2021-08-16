@@ -17,24 +17,31 @@
 #
 # SPDX-License-Identifier: EPL-2.0
 #
-
 import settings
 import argparse
 
 parser = argparse.ArgumentParser(
     description="Train 3D U-Net model", add_help=True,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
+parser.add_argument("--mode",
+                    default=settings.MODE,
+                    help="Train or test")
+parser.add_argument("--root_dir",
+                    default=settings.ROOT_DIR,
+                    help="Root directory for model and all dev code")
 parser.add_argument("--data_path",
                     default=settings.DATA_PATH,
-                    help="Root directory for Medical Decathlon dataset")
+                    help="Directory for data: T1 images and labels")
 parser.add_argument("--epochs",
                     type=int,
                     default=settings.EPOCHS,
                     help="Number of epochs")
-parser.add_argument("--saved_model_name",
-                    default=settings.SAVED_MODEL_NAME,
-                    help="Save model to this path")
+parser.add_argument("--saved_model1_name",
+                    default=settings.SAVED_MODEL1_NAME,
+                    help="Save model1 (localization) to this path")
+parser.add_argument("--saved_model2_name",
+                    default=settings.SAVED_MODEL2_NAME,
+                    help="Save model2 (segmentation) to this path")
 parser.add_argument("--batch_size",
                     type=int,
                     default=settings.BATCH_SIZE,
@@ -58,7 +65,7 @@ parser.add_argument("--number_input_channels",
 parser.add_argument("--number_output_classes",
                     type=int,
                     default=settings.NUMBER_OUTPUT_CLASSES,
-                    help="Number of output classes/channels")
+                    help="Number of output classes")
 parser.add_argument("--train_test_split",
                     type=float,
                     default=settings.TRAIN_TEST_SPLIT,
@@ -79,6 +86,9 @@ parser.add_argument("--use_upsampling",
                     action="store_true",
                     default=settings.USE_UPSAMPLING,
                     help="Use upsampling instead of transposed convolution")
+parser.add_argument("--augment_inputs",
+                    default=settings.AUGMENT,
+                    help="Augment input data: i.e brains and labels")
 parser.add_argument("--random_seed",
                     default=settings.RANDOM_SEED,
                     help="Random seed for determinism")
