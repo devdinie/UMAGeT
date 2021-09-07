@@ -7,12 +7,9 @@ import numpy     as np
 import nibabel   as nib
 import SimpleITK as sitk
 
-<<<<<<< Updated upstream
-=======
 from augment   import augment_data
 from argparser import args
 from skimage.transform import resize
->>>>>>> Stashed changes
 from createjson import create_jsonFile
 
 def get_filelist(datapath_net1,datapath_net2):
@@ -65,40 +62,22 @@ def get_roi(img, msk):
     return bbox
 
 
-<<<<<<< Updated upstream
-def prepdata(data_path=settings.DATA_PATH ):
-        
-=======
 def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
     input_dim=np.array((args.tile_width,args.tile_height,args.tile_depth))
 
->>>>>>> Stashed changes
     create_jsonFile(data_path=data_path)
 
     datapath_net1 = os.path.join(data_path,"data_net1")
     datapath_net2 = os.path.join(data_path,"data_net2")
 
     filenames    = get_filelist(datapath_net1,datapath_net2)
-<<<<<<< Updated upstream
 
-=======
-    
->>>>>>> Stashed changes
     for idx in range(0,len(filenames)):
 
         imgFile = filenames[idx][0]
         mskFile = filenames[idx][1]
-<<<<<<< Updated upstream
 
-        #print(imgFile,"|",mskFile)
-
-        img = nib.load(imgFile).get_fdata()
-        msk = nib.load(mskFile).get_fdata()
-        
-        img_aff = nib.load(imgFile).get_affine()
-        msk_aff = nib.load(mskFile).get_affine()
-=======
         print("filename: ",imgFile," | ",mskFile)
 
         if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
@@ -111,7 +90,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
         msk_thresholded[msk_thresholded > 0.5 ] = 1
         msk_thresholded[msk_thresholded <= 0.5] = 0
         msk = sitk.GetImageFromArray(msk_thresholded)
->>>>>>> Stashed changes
 
         print("msk count: ", np.count_nonzero(msk))
         
@@ -148,12 +126,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
             img_net2L = img_L[x1:x2,y1:y2,z1:z2]
             msk_net2L = msk_L[x1:x2,y1:y2,z1:z2]
-<<<<<<< Updated upstream
-
-            img_net2Lnii = nib.Nifti1Image(img_net2L,np.eye(4))
-            msk_net2Lnii = nib.Nifti1Image(msk_net2L,np.eye(4))
-=======
->>>>>>> Stashed changes
 
             img_net2Lnii = sitk.GetImageFromArray(resize(img_net2L,input_dim))
             msk_net2Lnii = sitk.GetImageFromArray(resize(msk_net2L,input_dim))
@@ -166,25 +138,16 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
             msk_net1L[x1:x2,y1:y2,z1:z2] = roi_patch
             #print("msk count L patch: ", np.count_nonzero(msk_net1L),"|",np.count_nonzero(msk_net1L==1))
 
-<<<<<<< Updated upstream
-            img_net1Lnii = nib.Nifti1Image(img_L,img_aff)
-            msk_net1Lnii = nib.Nifti1Image(msk_net1L,msk_aff)
-=======
             img_net1Lnii = sitk.GetImageFromArray(resize(img_L,input_dim))
             msk_net1Lnii = sitk.GetImageFromArray(resize(msk_net1L,input_dim))
->>>>>>> Stashed changes
 
             sitk.WriteImage(img_net1Lnii, os.path.join(datapath_net1,"brains" , os.path.basename(imgFile).split(".")[0]+"_L.nii"))
             sitk.WriteImage(msk_net1Lnii, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile).split(".")[0]+"_L.nii")) 
             
-<<<<<<< Updated upstream
-            
-            # RIGHT: Brain and label prep network 1
-=======
             # endregion LEFT: Brain and label prep
 
             # region RIGHT: Brain and label prep
->>>>>>> Stashed changes
+
             
             [x1, y1, z1, x2, y2, z2] = get_roi(img_R, msk_R)
 
@@ -193,16 +156,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
             img_net2R = np.zeros((x2-x1, y2-y1,z2-z1))
             msk_net2R = np.zeros((x2-x1, y2-y1,z2-z1))
 
-<<<<<<< Updated upstream
-            img_net2R = img_R[x1:x2,y1:y2,z1:z2]
-            msk_net2R = msk_R[x1:x2,y1:y2,z1:z2]
-
-            img_net2Rnii = nib.Nifti1Image(img_net2R,np.eye(4))
-            msk_net2Rnii = nib.Nifti1Image(msk_net2R,np.eye(4))
-
-            nib.save(img_net2Rnii, os.path.join(datapath_net2,"brains" , os.path.basename(imgFile).split(".")[0]+"_R"))
-            nib.save(msk_net2Rnii, os.path.join(datapath_net2,"target_labels", os.path.basename(mskFile).split(".")[0]+"_R"))
-=======
             img_net2R  = img_R[x1:x2,y1:y2,z1:z2]
             msk_net2R  = msk_R[x1:x2,y1:y2,z1:z2]
 
@@ -211,7 +164,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
          
             sitk.WriteImage(img_net2Rnii, os.path.join(datapath_net2,"brains" , os.path.basename(imgFile).split(".")[0]+"_R.nii"))
             sitk.WriteImage(msk_net2Rnii, os.path.join(datapath_net2,"target_labels", os.path.basename(mskFile).split(".")[0]+"_R.nii"))
->>>>>>> Stashed changes
 
             
             msk_net1R = np.zeros(msk_R.shape)
@@ -219,13 +171,8 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
             msk_net1R[x1:x2,y1:y2,z1:z2] = roi_patch
             #print("msk count R patch: ", np.count_nonzero(msk_net1R),"|",np.count_nonzero(msk_net1R==1))
 
-<<<<<<< Updated upstream
-            img_net1Rnii = nib.Nifti1Image(img_R ,img_aff)
-            msk_net1Rnii = nib.Nifti1Image(msk_net1R,msk_aff)
-=======
             img_net1Rnii = sitk.GetImageFromArray(resize(img_R,input_dim))
             msk_net1Rnii = sitk.GetImageFromArray(resize(msk_net1R,input_dim))
->>>>>>> Stashed changes
 
             sitk.WriteImage(img_net1Rnii, os.path.join(datapath_net1,"brains" , os.path.basename(imgFile).split(".")[0]+"_R.nii"))
             sitk.WriteImage(msk_net1Rnii, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile).split(".")[0]+"_R.nii"))
