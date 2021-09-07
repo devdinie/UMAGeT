@@ -68,17 +68,20 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
     create_jsonFile(data_path=data_path)
 
+    if augmentation:
+        augment_data(data_path)
+    
     datapath_net1 = os.path.join(data_path,"data_net1")
     datapath_net2 = os.path.join(data_path,"data_net2")
 
     filenames    = get_filelist(datapath_net1,datapath_net2)
-
+    """
     for idx in range(0,len(filenames)):
 
         imgFile = filenames[idx][0]
         mskFile = filenames[idx][1]
 
-        print("filename: ",imgFile," | ",mskFile)
+        #print("filename: ",imgFile," | ",mskFile)
 
         if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
             continue
@@ -86,15 +89,12 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
         img = sitk.ReadImage(imgFile, imageIO="NiftiImageIO")
         msk = sitk.ReadImage(mskFile, imageIO="NiftiImageIO")
 
-        msk_thresholded = sitk.GetArrayFromImage(msk)	
-        msk_thresholded[msk_thresholded > 0.5 ] = 1
-        msk_thresholded[msk_thresholded <= 0.5] = 0
-        msk = sitk.GetImageFromArray(msk_thresholded)
+        #msk_thresholded = sitk.GetArrayFromImage(msk)	
+        #msk_thresholded[msk_thresholded > 0.5 ] = 1
+        #msk_thresholded[msk_thresholded <= 0.5] = 0
+        #msk = sitk.GetImageFromArray(msk_thresholded)
 
-        print("msk count: ", np.count_nonzero(msk))
-        
-        if augmentation:
-            img, msk = augment_data(img,msk)
+        #print("msk count: ", np.count_nonzero(msk))
 
         mid = int(img.shape[2]/2)
         print("shape :", img.shape , "| mid :", mid)
@@ -107,13 +107,13 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
             msk_L = msk[:,:,0:mid] 
             msk_R = np.flip(msk[:,:,mid:mid*2],axis=2)
 
-            """
+        
             # Sanity checkls
             print("img shape: ", img_L.shape,"|",img_R.shape)
             print("msk shape: ", msk_L.shape,"|",msk_R.shape)
             print("msk count L: ", np.count_nonzero(msk_L),"|",np.count_nonzero(msk_L==1))
             print("msk count R: ", np.count_nonzero(msk_R),"|",np.count_nonzero(msk_R==1))
-            """
+            
 
             # region LEFT: Brain and label prep
             
@@ -182,3 +182,4 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
     create_jsonFile(data_path=datapath_net1)
     create_jsonFile(data_path=datapath_net2)
+    """

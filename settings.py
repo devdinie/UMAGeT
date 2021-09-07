@@ -20,6 +20,7 @@ import os
 
 ROOT_DIR          = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH         = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+TESTDATA_PATH     = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
 
 SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
 SAVED_MODEL2_NAME = "UNET2_SEGMENT"
