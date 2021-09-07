@@ -42,10 +42,5 @@ USE_UPSAMPLING=False
 
 RANDOM_SEED   =816
 
-<<<<<<< Updated upstream
-MODE     ="train"
-AUGMENT  =False
-=======
 MODE     ="training"
 AUGMENT  =True
->>>>>>> Stashed changes

@@ -33,12 +33,6 @@ prepdata(data_path=args.data_path)
 print("------------------ DATA PREP (IP):  DONE  ------------------")
 # endregion DATA PREP
 
-<<<<<<< Updated upstream
-print("*************************************************************")
-=======
-
-"""
->>>>>>> Stashed changes
 # region NETWORK1
 """
 
