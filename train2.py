@@ -1,7 +1,6 @@
 
 import os
 import datetime
-import settings
 
 import tensorflow as tf  
 
@@ -26,41 +25,36 @@ def test_intel_tensorflow():
     
 test_intel_tensorflow()
 
-
+"""
 # region DATA PREP
 print("------------------ DATA PREP (IP): BEGIN  ------------------")
 prepdata(data_path=args.data_path)
 print("------------------ DATA PREP (IP):  DONE  ------------------")
-# endregion DATA PREP
-
-<<<<<<< Updated upstream
 print("*************************************************************")
-=======
-
+# endregion DATA PREP
 """
->>>>>>> Stashed changes
+
 # region NETWORK1
-"""
-
 
 # region NETWORK1: DATA_GENERATOR
-
+"""
 print("------------------ DATA GENERATOR1:  BEGIN ------------------")
 input_dim = (args.tile_height, args.tile_width,args.tile_depth)
 augment = True
-data1 = DatasetGenerator(input_dim, data_path=os.path.join(settings.DATA_PATH,"data_net1"), batch_size=args.batch_size,
+data1 = DatasetGenerator(input_dim, data_path=os.path.join(args.data_path,"data_net1"), batch_size=args.batch_size,
                         train_test_split=args.train_test_split, validate_test_split=args.validate_test_split, 
                         number_output_classes=args.number_output_classes,random_seed=args.random_seed,augment=augment)
 data1.print_info()
 print("------------------ DATA GENERATOR1:  DONE  ------------------")
 
 print("*************************************************************")
-
+"""
 # endregion NETWORK1: DATA_GENERATOR
 
 
-# region NETWORK1: CREATE_MODEL
 
+# region NETWORK1: CREATE_MODEL
+"""
 print("------------------ CREATING MODEL1: BEGIN  ------------------")
 # Create tensorflow model
 input_dim = (args.tile_height, args.tile_width,args.tile_depth, args.number_input_channels)
@@ -79,12 +73,12 @@ callbacks= [checkpoint, tb_logs]
 print("------------------ CREATING MODEL1:  DONE  ------------------")
 
 print("*************************************************************")
-
+"""
 # endregion NETWORK1: CREATE_MODEL
 
 
 # region NETWORK1: TRAIN_MODEL
-
+"""
 print("------------------ TRAINING MODEL1: BEGIN  ------------------")
 # Train the model
 steps_per_epoch = data1.num_train // args.batch_size
@@ -92,12 +86,12 @@ model1.fit(data1.get_train(), epochs=args.epochs, steps_per_epoch=steps_per_epoc
 print("------------------ TRAINING MODEL1:  DONE  ------------------")
 
 print("*************************************************************")
-
+"""
 # endregion NETWORK1: TRAIN_MODEL
 
 
 # region NETWORK1: SAVE_EVALUATE_MODEL
-
+"""
 print("------------------ BEST MDL1 EVAL|SAVE:BEG ------------------")
 best_model1 = K.models.load_model(args.saved_model1_name, 
                                  custom_objects={"dice_loss": dice_loss,
@@ -115,11 +109,12 @@ K.models.save_model(best_model1, final_model1_name,include_optimizer=False)
 print("------------------ BEST MDL1 EVAL|SAVE:DNE ------------------")
 
 print("*************************************************************")
-
+"""
 #endregion NETWORK1: SAVE_EVALUATE_MODEL
 
 
 # region NETWORK1: CONVERT_MODEL
+"""
 print("------------------ CONVERTING MODEL1: BEGIN  ------------------")
 print("\n\nConvert the TensorFlow model to OpenVINO by running:\n")
 print("source /opt/intel/openvino/bin/setupvars.sh")
@@ -132,15 +127,15 @@ print("       --data_type FP32\n\n")
 print("------------------ CONVERTING MODEL1:  DONE  ------------------")
 
 # endregion NETWORK1: CONVERT_MODEL
+"""
 print("==================  NETWORK 1: COMPLETE.  ==================") 
 
-
 # endregion NETWORK1
-"""
+
 
 
 # region NETWORK2
-"""
+
 # region NETWORK2: DATA_GENERATOR
 print("------------------ DATA GENERATOR2:  BEGIN ------------------")
 input_dim = (args.tile_height, args.tile_width,args.tile_depth)
@@ -152,10 +147,10 @@ data2.print_info()
 print("------------------ DATA GENERATOR2:  DONE  ------------------")
 
 print("*************************************************************")
-"""
+
 # endregion NETWORK2: DATA_GENERATOR
 
-"""
+
 # region NETWORK2: CREATE_MODEL
 print("------------------ CREATING MODEL2: BEGIN  ------------------")
 # Create tensorflow model
@@ -226,7 +221,6 @@ print("       --data_type FP32\n\n")
 print("------------------ CONVERTING MODEL2:  DONE  ------------------")
 # endregion NETWORK2: CONVERT_MODEL
 
-# endregion NETWORK2
-
 print("==================  NETWORK 2: COMPLETE.  ==================")
-"""
+
+# endregion NETWORK2

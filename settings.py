@@ -34,7 +34,7 @@ NUMBER_INPUT_CHANNELS=1
 NUMBER_OUTPUT_CLASSES=1
 
 TRAIN_TEST_SPLIT   =0.80
-VALIDATE_TEST_SPLIT=0.20
+VALIDATE_TEST_SPLIT=0.50
 
 PRINT_MODEL   =False
 FILTERS       =16
@@ -42,5 +42,10 @@ USE_UPSAMPLING=False
 
 RANDOM_SEED   =816
 
+<<<<<<< Updated upstream
 MODE     ="train"
 AUGMENT  =False
+=======
+MODE     ="training"
+AUGMENT  =True
+>>>>>>> Stashed changes

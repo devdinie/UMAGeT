@@ -24,7 +24,12 @@ def create_jsonFile(data_path):
     side =list()
     for file in range(0,no_cases):
         cases.append(cases_br[file].split("_")[0])
+<<<<<<< Updated upstream
         if data_path != settings.DATA_PATH:
+=======
+
+        if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH)):
+>>>>>>> Stashed changes
             side.append(cases_br[file].split("_")[2].split(".")[0])
 
     #else:
