@@ -10,6 +10,7 @@ def save_json(json_dict, filepath):
 
 def create_jsonFile(data_path):
     
+    print("********",data_path)
     brains_dir = os.path.join(data_path,"brains")
     labels_dir = os.path.join(data_path,"target_labels")
 
@@ -43,7 +44,7 @@ def create_jsonFile(data_path):
                                      "1": "Hippocampus" }
     json_dict['numTraining']     = no_cases
 
-    if data_path != settings.DATA_PATH:
+    if (data_path != settings.DATA_PATH) and (data_path != settings.DATA_PATH_AUG):
         json_dict['testing']    = [{'image': os.path.join(brains_dir,"%s_t1_%s.nii") % (i,j), 
                                      "label": os.path.join(labels_dir,"%s_labels_%s.nii") % (i,j)} for (i,j) in zip(cases,side)]
     else:

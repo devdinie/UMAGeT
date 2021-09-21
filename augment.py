@@ -57,15 +57,23 @@ def rotate(subject_id,img, msk,data_path,angle,axes,norm):
 	img_rot = scipy.ndimage.rotate(img, angle, axes=axes)
 	msk_rot = scipy.ndimage.rotate(msk, angle, axes=axes)
 	
-	sitk.WriteImage(sitk.GetImageFromArray(img_rot), os.path.join(data_path,"brains_aug"       , subject_id+"_t1_"+str(norm)+".nii"))
-	sitk.WriteImage(sitk.GetImageFromArray(msk_rot), os.path.join(data_path,"target_labels_aug", subject_id+"_labels_"+str(norm)+".nii"))
+	sitk.WriteImage(sitk.GetImageFromArray(img_rot), os.path.join(data_path,"brains"       , subject_id+"_t1_"    +str(norm)+"r"+str(angle)+".nii"))
+	sitk.WriteImage(sitk.GetImageFromArray(msk_rot), os.path.join(data_path,"target_labels", subject_id+"_labels_"+str(norm)+"r"+str(angle)+".nii"))
 	
 
-def gaussian_noise(img):
-	noise = np.random.normal(0, .1, img.shape)
-	img_wnoise = img + noise
+def add_noise(data_path,img,msk,sigma_g, sigma_r,img_suff,msk_suff):
+
+	size = msk.shape
+
+	noise_rician   = scipy.stats.rice.rvs(1, sigma_r, size=size)
+	noise_gaussian =    np.random.normal( 0, sigma_g, size=size)
+
+	img_wnoise = img + noise_gaussian + noise_rician
 	
-	return sitk.GetImageFromArray(img_wnoise)
+	sitk.WriteImage(sitk.GetImageFromArray(img_wnoise), os.path.join(img_suff,"n.nii"))
+	sitk.WriteImage(sitk.GetImageFromArray(msk) 	  , os.path.join(msk_suff,"n.nii"))
+	
+
 
 def augment_data(data_path):
 
@@ -81,9 +89,6 @@ def augment_data(data_path):
 	angles_range=  np.arange(-5, 6, 1)
 	rot_prob    =  scipy.stats.norm.pdf(angles_range,0,1)
 	angles      =  np.random.choice(angles_range, no_filenames, p=rot_prob)
-	
-
-	#noise_mat = np.random.choice([0,1], no_filenames, p=[0.6, 0.4])
 
 	for idx in range(0,len(filenames)):
 		
@@ -98,21 +103,22 @@ def augment_data(data_path):
 		img = sitk.ReadImage(imgFile, imageIO="NiftiImageIO")
 		msk = sitk.ReadImage(mskFile, imageIO="NiftiImageIO")
 
-		data_path_aug = os.path.join(data_path,"aug")
+		data_path_aug = os.path.join(data_path,"data_aug")
 		if not os.path.exists(data_path_aug):
 			os.mkdir(data_path_aug)
 
-		if not os.path.exists(os.path.join(data_path_aug,"brains_aug")):
-			os.mkdir(os.path.join(data_path_aug,"brains_aug"))
+		if not os.path.exists(os.path.join(data_path_aug,"brains")):
+			os.mkdir(os.path.join(data_path_aug,"brains"))
 
-		if not os.path.exists(os.path.join(data_path_aug,"target_labels_aug")):
-			os.mkdir(os.path.join(data_path_aug,"target_labels_aug"))
+		if not os.path.exists(os.path.join(data_path_aug,"target_labels")):
+			os.mkdir(os.path.join(data_path_aug,"target_labels"))
 		
 		norm = 0 
 		img_norm, msk_norm, norm = normalize(img, msk)
 
 		rotate(subject_id,sitk.GetArrayFromImage(img_norm), sitk.GetArrayFromImage(msk_norm),data_path_aug,angles[idx],all_axes[axes[idx]],norm)
-
+	
+	data_path_aug = os.path.join(data_path,"data_aug")
 	create_jsonFile(data_path=data_path_aug)
 
 	filenames_aug    = get_filelist(data_path_aug)
@@ -129,6 +135,8 @@ def augment_data(data_path):
 		if not (os.path.exists(imgFile_aug) or os.path.exists(mskFile_aug)):
 			continue
 
-		add_noise(sitk.GetArrayFromImage(imgFile_aug),sitk.GetArrayFromImage(mskFile_aug),sigma_g, sigma_r)
+		img_aug_suff = os.path.splitext(imgFile_aug)[0]
+		msk_aug_suff = os.path.splitext(mskFile_aug)[0]
+		add_noise(sitk.GetArrayFromImage(imgFile_aug),sitk.GetArrayFromImage(mskFile_aug),sigma_g, sigma_r,img_aug_suff,msk_aug_suff)
 	
 	
