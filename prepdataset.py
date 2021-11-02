@@ -70,12 +70,16 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
     if augmentation:
         augment_data(data_path)
+        
+        datapath_net1 = os.path.join(settings.DATA_PATH_AUG,"data_net1")
+        datapath_net2 = os.path.join(settings.DATA_PATH_AUG,"data_net2")
     
-    datapath_net1 = os.path.join(data_path,"data_net1")
-    datapath_net2 = os.path.join(data_path,"data_net2")
+    else:
+        datapath_net1 = os.path.join(data_path,"data_net1")
+        datapath_net2 = os.path.join(data_path,"data_net2")
 
     filenames    = get_filelist(datapath_net1,datapath_net2)
-    """
+    
     for idx in range(0,len(filenames)):
 
         imgFile = filenames[idx][0]
@@ -108,7 +112,7 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
             msk_R = np.flip(msk[:,:,mid:mid*2],axis=2)
 
         
-            # Sanity checkls
+            # Sanity checks
             print("img shape: ", img_L.shape,"|",img_R.shape)
             print("msk shape: ", msk_L.shape,"|",msk_R.shape)
             print("msk count L: ", np.count_nonzero(msk_L),"|",np.count_nonzero(msk_L==1))
@@ -182,4 +186,3 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
     create_jsonFile(data_path=datapath_net1)
     create_jsonFile(data_path=datapath_net2)
-    """

@@ -19,15 +19,29 @@ def create_jsonFile(data_path):
 
     #if no_brains == no_labels:
     no_cases = no_brains
-    cases_br    = os.listdir(brains_dir)
+    cases_img    = os.listdir(brains_dir)
+    cases_msk    = os.listdir(labels_dir)
         
-    cases=list()
-    side =list()
-    for file in range(0,no_cases):
-        cases.append(cases_br[file].split("_")[0])
+    cases  =list()
+    side   =list()
 
-        if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH)):
-            side.append(cases_br[file].split("_")[2].split(".")[0])
+    suffix_img =list()
+    suffix_msk =list()
+
+    for file in range(0,no_cases):
+        
+        suffix_arr     = cases_img[file].split(".")[0].split("_")
+        
+        #Check:
+        #print(file,"|",cases_img[file],"|",suffix_arr[len(suffix_arr)-1],"|",  cases_img[file].split("_",1)[1])
+        
+        cases.append(cases_img[file].split("_")[0])
+
+        suffix_img.append(cases_img[file].split(".")[0].split("_",1)[1])
+        suffix_msk.append(cases_img[file].split(".")[0].split("_",1)[1].replace("t1","labels"))
+
+        if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH) or (data_path==settings.DATA_PATH_AUG)):
+            side.append(cases_img[file].split("_")[len(suffix_arr)].split(".")[0])
 
     #else:
         #print("Error: Number of brains and target labels don't match.")
@@ -45,12 +59,11 @@ def create_jsonFile(data_path):
     json_dict['numTraining']     = no_cases
 
     if (data_path != settings.DATA_PATH) and (data_path != settings.DATA_PATH_AUG):
-        json_dict['testing']    = [{'image': os.path.join(brains_dir,"%s_t1_%s.nii") % (i,j), 
-                                     "label": os.path.join(labels_dir,"%s_labels_%s.nii") % (i,j)} for (i,j) in zip(cases,side)]
+        json_dict['testing']    = [{'image': os.path.join(brains_dir,"%s_%s_%s.nii") % (i,j,k), 
+                                     "label": os.path.join(labels_dir,"%s_%s_%s.nii") % (i,j,k)} for (i,j,k) in zip(cases,suffix_img,side)]
     else:
-        json_dict['training']    = [{'image': os.path.join(brains_dir,"%s_t1.nii") % i, 
-                                     "label": os.path.join(labels_dir,"%s_labels.nii") % i} for i in cases]
+        json_dict['training']   = [{'image': os.path.join(brains_dir,"%s_%s.nii") % (i,j), 
+                                    "label": os.path.join(labels_dir,"%s_%s.nii") % (i,k)} for (i,j,k) in zip(cases,suffix_img,suffix_msk)]
 
 
-    print(cases)
     save_json(json_dict, os.path.join(data_path, "dataset.json"))
