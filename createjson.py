@@ -40,8 +40,11 @@ def create_jsonFile(data_path):
         suffix_img.append(cases_img[file].split(".")[0].split("_",1)[1])
         suffix_msk.append(cases_img[file].split(".")[0].split("_",1)[1].replace("t1","labels"))
 
+        print("---",cases_img[file].split(".")[0].split("_",1)[1])
+
         if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH) or (data_path==settings.DATA_PATH_AUG)):
-            side.append(cases_img[file].split("_")[len(suffix_arr)].split(".")[0])
+            side.append(cases_img[file].split("_")[len(suffix_arr)-1].split(".")[0])
+            #print("---",cases_img[file].split("_")[len(suffix_arr)-1].split(".")[0])
 
     #else:
         #print("Error: Number of brains and target labels don't match.")
@@ -58,7 +61,8 @@ def create_jsonFile(data_path):
                                      "1": "Hippocampus" }
     json_dict['numTraining']     = no_cases
 
-    if (data_path != settings.DATA_PATH) and (data_path != settings.DATA_PATH_AUG):
+    #if (data_path != settings.DATA_PATH) and (data_path != settings.DATA_PATH_AUG):
+    if (data_path == settings.TESTDATA_PATH):
         json_dict['testing']    = [{'image': os.path.join(brains_dir,"%s_%s_%s.nii") % (i,j,k), 
                                      "label": os.path.join(labels_dir,"%s_%s_%s.nii") % (i,j,k)} for (i,j,k) in zip(cases,suffix_img,side)]
     else:
