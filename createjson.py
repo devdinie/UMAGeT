@@ -39,9 +39,9 @@ def create_jsonFile(data_path):
         suffix_img.append(cases_img[file].split(".")[0].split("_",1)[1])
         suffix_msk.append(cases_img[file].split(".")[0].split("_",1)[1].replace("t1","labels"))
 
-        print("---",cases_img[file].split(".")[0].split("_",1)[1])
+        #print("---",cases_img[file].split(".")[0].split("_",1)[1])
 
-        if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH) or (data_path==settings.DATA_PATH_AUG)):
+        if not ((data_path==settings.DATA_PATH) or (data_path==settings.TESTDATA_PATH) or (data_path==settings.DATAPATH_INPUT)):
             side.append(cases_img[file].split("_")[len(suffix_arr)-1].split(".")[0])
 	    
 	#else:

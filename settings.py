@@ -18,10 +18,10 @@
 #
 import os
 
-ROOT_DIR         = os.path.join(os.path.dirname(__file__),"..")
-DATA_PATH        = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
-DATA_PATH_AUG    = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_aug")
-TESTDATA_PATH    = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+ROOT_DIR        = os.path.join(os.path.dirname(__file__),"..")
+DATA_PATH       = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+DATAPATH_INPUT  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
+TESTDATA_PATH   = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
 
 IMAGE_FILETYPE = "NiftiImageIO"
 
