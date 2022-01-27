@@ -1,13 +1,16 @@
+from locale import normalize
 import os
 import json
 import settings
-import numpy as np
+import numpy   as np
+import nibabel as nib
 
 import argparse  as args
 import SimpleITK as sitk
 
-from createjson import create_jsonFile
-
+from createjson    import create_jsonFile
+from preprocess    import resample_img, normalize_img
+from scipy.ndimage import rotate
 
 def get_filelist(data_path):
 	
@@ -30,7 +33,7 @@ def get_filelist(data_path):
 
 def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 	
-	input_dim=np.array((settings.TILE_WIDTH,settings.TILE_HEIGHT,settings.TILE_DEPTH))
+	input_dim=[settings.TILE_WIDTH,settings.TILE_HEIGHT,settings.TILE_DEPTH]
 	
 	create_jsonFile(data_path=data_path)
 	
@@ -69,27 +72,18 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
 			continue
 
-		#region READ brains | labels
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(imgFile)
-		img_nii = reader.Execute()
-
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(mskFile)
-		msk_nii = reader.Execute()
-        	#endregion READ brains | labels	
-
-		#region WRITE brains | labels
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(os.path.join(settings.DATAPATH_INPUT,"brains" , os.path.basename(imgFile)))
-		writer.Execute(img_nii)
-
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(os.path.join(settings.DATAPATH_INPUT,"target_labels", os.path.basename(mskFile)))
-		writer.Execute(img_nii)
-		#endregion WRITE brains | labels
+		#region PREPROCESS INPUT DATA brains | labels
 		
+		img_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
+		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
+
+		img_resampled_nii, msk_resampled_nii   = resample_img(img_nii, msk_nii, input_dim)
+		img_normalized_nii, msk_normalized_nii = normalize_img(img_resampled_nii, msk_resampled_nii)
+
+		#endregion PREPROCESS INPUT DATA brains | labels
+		
+		print(img_nii.GetSize(),"|", img_normalized_nii.GetSize())
+		print(msk_nii.GetSize(),"|", msk_normalized_nii.GetSize())
+
+		sitk.WriteImage(img_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , os.path.basename(imgFile)))
+		sitk.WriteImage(msk_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", os.path.basename(mskFile)))

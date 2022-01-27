@@ -7,34 +7,48 @@ import numpy     as np
 import SimpleITK as sitk
 
 import scipy
-import torchio
 import skimage
 import nilearn.masking
 import skimage.morphology
 
 from matplotlib.pyplot import axes
-from SimpleITK.SimpleITK import GetArrayFromImage
+from skimage.transform import resize
+
 from numpy.core.fromnumeric import reshape, shape
 from scipy.ndimage.measurements import standard_deviation
 
 # These functions are performed regardless of augmentation
 
-def normalize(img,msk):
+def resample_img(img_nii, msk_nii, input_dim):
+
+    img_nii = img_nii
+    msk_nii = msk_nii
+    
+    reference_size = input_dim
+
+    reference = sitk.GetImageFromArray(np.zeros((input_dim)))
+    reference.SetOrigin(msk_nii.GetOrigin())
+    reference.SetDirection(msk_nii.GetDirection())
+
+    reference_physicalsize = np.zeros(msk_nii.GetDimension())
+    reference_physicalsize[:] = [(sz-1)*spc if sz*spc>mx  else mx for sz,spc,mx in zip(msk_nii.GetSize(), msk_nii.GetSpacing(), reference_physicalsize)]
+    reference_spacing = [ phys_sz/(sz-1) for sz,phys_sz in zip(reference_size, reference_physicalsize) ]
+
+    msk_resampled = sitk.Resample(msk_nii, reference)
+    img_resampled = sitk.Resample(img_nii, msk_resampled)
+
+    return img_resampled, msk_resampled
+
+def normalize_img(img_nii, msk_nii):
 	
-	img_arr  = sitk.GetArrayFromImage(img)
-	img_norm_arr = (img_arr - np.mean(img_arr))/(np.std(img_arr))
-	img_norm = sitk.GetImageFromArray(img_norm_arr)
+    img_arr  = sitk.GetArrayFromImage(img_nii)
 
-	msk_arr = sitk.GetArrayFromImage(msk)
-	msk_arr[msk_arr > 0.5 ] =   1
-	msk_arr[msk_arr <= 0.5] =   0
-	msk_norm = sitk.GetImageFromArray(msk_arr)
-
-	img_norm.CopyInformation(img)
-	msk_norm.CopyInformation(msk)
-
-	norm = 1
-	return img_norm, msk_norm, norm
+    img_norm_arr = (img_arr - np.min(img_arr)) / (np.max(img_arr) - np.min(img_arr))
+    img_norm_nii     = sitk.GetImageFromArray(img_norm_arr)
+    
+    img_norm_nii.CopyInformation(img_nii)
+    
+    return img_norm_nii, msk_nii
 
 def get_roi(msk):
     
