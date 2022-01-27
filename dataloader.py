@@ -115,40 +115,20 @@ class DatasetGenerator:
         
         return img, msk
 
-    def display_train_images(self, slice_num=90):
-        """
-        Plots some training images
-        """
-        self.plot_images(self.ds_train, slice_num)
-
-    def display_validation_images(self, slice_num=90):
-        """
-        Plots some validation images
-        """
-        self.plot_images(self.ds_val, slice_num)
-
-    def display_test_images(self, slice_num=90):
-        """
-        Plots some test images
-        """
-        self.plot_images(self.ds_test, slice_num)
 
     def get_train(self):
-        """
-        Return train dataset
-        """
+        # Return train dataset
+    
         return self.ds_train
 
     def get_test(self):
-        """
-        Return test dataset
-        """
+        # Return test dataset
+        
         return self.ds_test
 
     def get_validate(self):
-        """
-        Return validation dataset
-        """
+        # Return validation dataset
+
         return self.ds_val
 
     def get_dataset(self):
@@ -205,17 +185,12 @@ if __name__ == "__main__":
 
     from argparser import args
     
-    resize_dim = (args.tile_height, args.tile_width, args.tile_depth, args.number_input_channels)
+    input_dim = (args.tile_height, args.tile_width, args.tile_depth, args.number_input_channels)
 
-    """
-    Load the dataset
-    """
-    data = DatasetGenerator(crop_dim,
-                                  data_path=args.data_path,
-                                  batch_size=args.batch_size,
-                                  train_test_split=args.train_test_split,
-                                  validate_test_split=args.validate_test_split,
-                                  number_output_classes=args.number_output_classes,
-                                  random_seed=args.random_seed)
+    # Load the dataset
+    
+    data = DatasetGenerator(input_dim, data_path=args.data_path, batch_size=args.batch_size,
+                            train_test_split=args.train_test_split, validate_test_split=args.validate_test_split,
+                            number_output_classes=args.number_output_classes, random_seed=args.random_seed)
 
     data.print_info()

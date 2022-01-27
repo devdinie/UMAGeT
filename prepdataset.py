@@ -61,8 +61,8 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
 	filenames    = get_filelist(data_path=settings.DATA_PATH)
 
-	ref_img_size = [settings.TILE_HEIGHT, settings.TILE_WIDTH, settings.TILE_DEPTH]
-	mid_idx      = np.around(ref_img_size[0]/2).astype(int)
+	#ref_img_size = [settings.TILE_HEIGHT, settings.TILE_WIDTH, settings.TILE_DEPTH]
+	#mid_idx      = np.around(ref_img_size[0]/2).astype(int)
 
 	for idx in range(0,len(filenames)):
 		
@@ -87,3 +87,5 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
 		sitk.WriteImage(img_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , os.path.basename(imgFile)))
 		sitk.WriteImage(msk_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", os.path.basename(mskFile)))
+
+		create_jsonFile(data_path=settings.DATAPATH_INPUT)

@@ -18,17 +18,18 @@
 #
 import os
 
-ROOT_DIR        = os.path.join(os.path.dirname(__file__),"..")
-DATA_PATH       = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
-DATAPATH_INPUT  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
-TESTDATA_PATH   = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
+DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+DATAPATH_AUG   = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_aug")
+DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
+TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
 
 IMAGE_FILETYPE = "NiftiImageIO"
 
 SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
 SAVED_MODEL2_NAME = "UNET2_SEGMENT"
 
-EPOCHS     =10
+EPOCHS     =40
 BATCH_SIZE =1
 TILE_HEIGHT=144
 TILE_WIDTH =144
@@ -47,4 +48,4 @@ USE_UPSAMPLING=False
 RANDOM_SEED   =816
 
 MODE     ="train"
-AUGMENT  =True
+AUGMENT  =False
