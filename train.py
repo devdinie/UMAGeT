@@ -29,11 +29,12 @@ prepdata(data_path=args.data_path)
 print("- Preprocessing complete.")
 # endregion DATA PREP
 
-"""
+
 #region DATA GENERATOR
 print("- Starting data generator ...")
 input_dim = (args.tile_height, args.tile_width,args.tile_depth)
-training_datapath = os.path.join(settings.DATAPATH_INPUT)
+#training_datapath = os.path.join(settings.DATAPATH_INPUT)
+training_datapath = os.path.join(settings.DATA_PATH,"data_net1")
 data_net1 = DatasetGenerator(input_dim, data_path=training_datapath, batch_size=args.batch_size,
                         train_test_split=args.train_test_split, validate_test_split=args.validate_test_split, 
                         number_output_classes=args.number_output_classes,random_seed=args.random_seed,augment=settings.AUGMENT)
@@ -65,4 +66,3 @@ steps_per_epoch = data_net1.num_train // args.batch_size
 model1.fit(data_net1.get_train(), epochs=args.epochs, steps_per_epoch=steps_per_epoch, validation_data=data_net1.get_validate(), callbacks=callbacks, verbose=1)
 print("- Training network 1 complete ...")
 # endregion NETWORK1: TRAIN_MODEL
-"""
