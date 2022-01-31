@@ -101,7 +101,7 @@ def elastic_deformation(img, msk):
 	msk_def_arr[msk_def_arr >  np.min(msk_arr)] = 1
 	msk_def_arr[msk_def_arr <= np.min(msk_arr)] = 0
 
-	print(img_def_arr.shape,"|",msk_def_arr.shape)
+	#print(img_def_arr.shape,"|",msk_def_arr.shape)
 	img_def = sitk.GetImageFromArray(np.squeeze(img_def_arr,axis=0))
 	msk_def = sitk.GetImageFromArray(np.squeeze(msk_def_arr,axis=0))
 
@@ -188,12 +188,12 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		noise   = np.zeros(no_filenames_rot, dtype=int)
 
 	if aug_deform:
-		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.80])
+		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.20,0.80])
 	else:
 		edeform = np.zeros(no_filenames_rot, dtype=int)
 	
 	if aug_spike:
-		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.80])
+		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.20,0.80])
 	else:
 		spikes  = np.zeros(no_filenames_rot, dtype=int)
 	#endregion Initialize AUGMENTATION | Noise, Deform
@@ -225,8 +225,6 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		#endregion augmentation - spiking
 
 		#region augmentation - write image
-		#imgFile_rot.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx]))
-		
 		img_filename = imgFile_rot.replace("-n0-d0-sp0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]) + "-sp"+str(spikes[idx]))
 		msk_filename = mskFile_rot.replace("-n0-d0-sp0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]) + "-sp"+str(spikes[idx]))
 
