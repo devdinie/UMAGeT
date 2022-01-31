@@ -8,6 +8,7 @@ import nibabel as nib
 import argparse  as args
 import SimpleITK as sitk
 
+from augment	   import augment_data
 from createjson    import create_jsonFile
 from preprocess    import resample_img, normalize_img
 from scipy.ndimage import rotate
@@ -59,10 +60,9 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		os.mkdir(os.path.join(datapath_net2,"target_labels"))
 	#endregion create input directories
 
+	
+	#region PREPROCESS ALL PREPARED INPUT DATA brains | labels 	
 	filenames    = get_filelist(data_path=settings.DATA_PATH)
-
-	#ref_img_size = [settings.TILE_HEIGHT, settings.TILE_WIDTH, settings.TILE_DEPTH]
-	#mid_idx      = np.around(ref_img_size[0]/2).astype(int)
 
 	for idx in range(0,len(filenames)):
 		
@@ -71,21 +71,44 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
 		if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
 			continue
-
-		#region PREPROCESS INPUT DATA brains | labels
 		
 		img_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
 		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
-
-		img_resampled_nii, msk_resampled_nii   = resample_img(img_nii, msk_nii, input_dim)
-		img_normalized_nii, msk_normalized_nii = normalize_img(img_resampled_nii, msk_resampled_nii)
-
-		#endregion PREPROCESS INPUT DATA brains | labels
 		
-		print(img_nii.GetSize(),"|", img_normalized_nii.GetSize())
-		print(msk_nii.GetSize(),"|", msk_normalized_nii.GetSize())
 
-		sitk.WriteImage(img_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , os.path.basename(imgFile)))
-		sitk.WriteImage(msk_normalized_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", os.path.basename(mskFile)))
+		imgFile_aug = os.path.basename(imgFile).replace("_t1"    , "_t1_"+"norm"+"-rC0-n0-d0-gh0-sp0")
+		mskFile_aug = os.path.basename(mskFile).replace("_labels", "_labels_"+"norm"+"-rC0-n0-d0-gh0-sp0")
+		
+		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_aug))
+		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))
 
 		create_jsonFile(data_path=settings.DATAPATH_INPUT)
+
+	if settings.AUGMENT:
+		print("YES! AUGMENT!!!")
+		augment_data(data_path=settings.DATAPATH_INPUT)
+
+	filenames_aug = get_filelist(data_path=settings.DATAPATH_INPUT)
+		
+	for idx in range(0,len(filenames_aug)):
+			
+		imgFile_aug = filenames_aug[idx][0]
+		mskFile_aug = filenames_aug[idx][1]
+			
+		if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
+			continue
+
+		imgaug_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
+		mskaug_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
+		
+		img_normalized_nii, msk_normalized_nii = normalize_img(imgaug_nii, mskaug_nii)
+		img_resampled_nii, msk_resampled_nii   = resample_img(img_normalized_nii, msk_normalized_nii, input_dim)
+		
+		sitk.WriteImage(img_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_aug))
+		sitk.WriteImage(img_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))
+		
+		print(imgaug_nii.GetSize(),"|", img_resampled_nii.GetSize())
+		print(mskaug_nii.GetSize(),"|", msk_resampled_nii.GetSize())
+		
+		create_jsonFile(data_path=settings.DATAPATH_INPUT)
+	#endregion PREPROCESS ALL PREPARED INPUT DATA brains | labels
