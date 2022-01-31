@@ -76,8 +76,8 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
 		
 
-		imgFile_aug = os.path.basename(imgFile).replace("_t1"    , "_t1_"+"norm"+"-rC0-n0-d0-gh0-sp0")
-		mskFile_aug = os.path.basename(mskFile).replace("_labels", "_labels_"+"norm"+"-rC0-n0-d0-gh0-sp0")
+		imgFile_aug = os.path.basename(imgFile).replace("_t1"    , "_t1_"+"norm"+"-rC0-n0-d0-sp0-gh0")
+		mskFile_aug = os.path.basename(mskFile).replace("_labels", "_labels_"+"norm"+"-rC0-n0-d0-sp0-gh0")
 		
 		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_aug))
 		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))

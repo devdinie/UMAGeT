@@ -86,7 +86,6 @@ def add_noise(img,msk):
 		
 	return img_wnoise, msk
 
-
 def elastic_deformation(img, msk):
 
 	img_arr = sitk.GetArrayFromImage(img)
@@ -109,6 +108,19 @@ def elastic_deformation(img, msk):
 	msk_def.CopyInformation(msk)
 
 	return img_def, msk_def
+
+def add_spiking(img):
+
+	img_msk  = sitk.GetArrayFromImage(img)
+	img_msk[img_msk>0] = 1
+
+	spikes_list  = [(1, 1), (1, 2), (0, 1), (0, 2), (2, 2)]
+	spikes_choice= np.random.choice(5,1) 
+
+	add_spikes = torchio.RandomSpike(num_spikes=spikes_list[spikes_choice[0]])
+	img_spiked = add_spikes(img)
+
+	return img_spiked
 
 def augment_data(data_path=settings.DATAPATH_INPUT):
 
@@ -178,6 +190,11 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
 	else:
 		edeform = np.zeros(no_filenames_rot, dtype=int)
+	
+	if aug_spike:
+		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
+	else:
+		spikes  = np.zeros(no_filenames_rot, dtype=int)
 	#endregion Initialize AUGMENTATION | Noise, Deform
 
 	for idx in range(0,len(filenames_rot)):
@@ -191,24 +208,33 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		img_nii = sitk.ReadImage(imgFile_rot, imageIO=data_filetype)
 		msk_nii = sitk.ReadImage(mskFile_rot, imageIO=data_filetype)
 
-		"""
 		#region augmentation - noise
 		if aug_noise and (noise[idx] == 1):
 			img_nii,  msk_nii = add_noise(img_nii,msk_nii)
 		#endregion augmentation - noise
 		
 
-		
 		#region augmentation - deformation
 		if aug_deform and (edeform[idx] == 1):
 			img_nii,  msk_nii = elastic_deformation(img_nii,  msk_nii)	
 		#endregion augmentation - deformation
-		"""
 
+		"""
+		#region augmentation - spiking
+		if aug_spike and (spikes[idx] == 1):
+			img_nii = add_spiking(img_nii)
+		#endregion augmentation - spiking
+		"""
+		
 		#region augmentation - write image
 		#imgFile_rot.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx]))
-		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_rot.replace("-n0","-n"+str(noise[idx]))))
-		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_rot.replace("-n0","-n"+str(noise[idx]))))
+		
+		img_filename = imgFile_rot.replace("-n0-d0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]))
+		msk_filename = mskFile_rot.replace("-n0-d0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]))
+
+		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , img_filename))
+		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", msk_filename))
+		
 		create_jsonFile(data_path=data_path)
 		#endregion augmentation - write image
 
