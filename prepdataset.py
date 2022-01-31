@@ -10,7 +10,7 @@ import SimpleITK as sitk
 
 from augment	   import augment_data
 from createjson    import create_jsonFile
-from preprocess    import resample_img, normalize_img
+from preprocess    import resample_img, normalize_img, split_image
 from scipy.ndimage import rotate
 
 def get_filelist(data_path):
@@ -85,13 +85,13 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		create_jsonFile(data_path=settings.DATAPATH_INPUT)
 
 	if settings.AUGMENT:
-		print("YES! AUGMENT!!!")
 		augment_data(data_path=settings.DATAPATH_INPUT)
 
 	filenames_aug = get_filelist(data_path=settings.DATAPATH_INPUT)
 		
 	for idx in range(0,len(filenames_aug)):
-			
+		
+		#region Read filenames and image - brains & labels
 		imgFile_aug = filenames_aug[idx][0]
 		mskFile_aug = filenames_aug[idx][1]
 			
@@ -100,15 +100,37 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
 		imgaug_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
 		mskaug_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
+		#endregion Read filenames and image - brains & labels
 		
+		#region Normalize and Resample
 		img_normalized_nii, msk_normalized_nii = normalize_img(imgaug_nii, mskaug_nii)
 		img_resampled_nii, msk_resampled_nii   = resample_img(img_normalized_nii, msk_normalized_nii, input_dim)
-		
+		#endregion Normalize and Resample
+
+		#region Write augmented and preprocessed full image - brains and labels
 		sitk.WriteImage(img_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_aug))
 		sitk.WriteImage(msk_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))
+		create_jsonFile(data_path=settings.DATAPATH_INPUT)
+		#endregion Write augmented and preprocessed full image - brains and labels
 		
 		print(imgaug_nii.GetSize(),"|", img_resampled_nii.GetSize())
 		print(mskaug_nii.GetSize(),"|", msk_resampled_nii.GetSize())
 		
-		create_jsonFile(data_path=settings.DATAPATH_INPUT)
+
+		mid_idx = np.around(input_dim[0]/2).astype(int)
+
+		imgL, imgR, mskL, mskR = split_image(img_resampled_nii, msk_resampled_nii, mid_idx)
+
+		print(imgL.GetSize(),"|",imgR.GetSize())
+		
+		#region Write augmented and preprocessed L|R separately - brains and labels
+		sitk.WriteImage(imgL, os.path.join(datapath_net1,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_L"))))
+		sitk.WriteImage(imgR, os.path.join(datapath_net1,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_R"))))
+		
+		sitk.WriteImage(mskL, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_L"))))
+		sitk.WriteImage(mskR, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_R"))))
+		
+		#create_jsonFile(data_path=datapath_net1)
+		#endregion Write augmented and preprocessed L|R separately - brains and labels
+
 	#endregion PREPROCESS ALL PREPARED INPUT DATA brains | labels

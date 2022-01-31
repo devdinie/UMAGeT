@@ -50,6 +50,16 @@ def normalize_img(img_nii, msk_nii):
     
     return img_norm_nii, msk_nii
 
+def split_image(img, msk, mid_idx):
+
+    imgL = img[0 : mid_idx      , 0:img.GetSize()[1],0:img.GetSize()[2]]
+    imgR = img[mid_idx:mid_idx*2, 0:img.GetSize()[1],0:img.GetSize()[2]]
+
+    mskL = msk[0      : mid_idx ,0:msk.GetSize()[1],0:msk.GetSize()[2]]
+    mskR = msk[mid_idx:mid_idx*2,0:msk.GetSize()[1],0:msk.GetSize()[2]]
+    
+    return imgL, imgR, mskL, mskR
+
 def get_roi(msk):
     
     msk_arr = sitk.GetArrayFromImage(msk)
