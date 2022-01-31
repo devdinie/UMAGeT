@@ -116,7 +116,7 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 	
 	filenames     = get_filelist(data_path)
 	no_filenames  = len(filenames)	
-	
+
 	#region AUGMENTATION | Rotation
 	if(aug_rotate):
 		all_axes    = [(1, 0), (1, 2), (0, 2)]
@@ -164,7 +164,7 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 	create_jsonFile(data_path=data_path)
 	#endregion AUGMENTATION | Rotation
 
-
+	
 	#region Initialize AUGMENTATION | Noise, Deform
 	filenames_rot    = get_filelist(data_path)
 	no_filenames_rot = len(filenames_rot)
@@ -196,18 +196,20 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		if aug_noise and (noise[idx] == 1):
 			img_nii,  msk_nii = add_noise(img_nii,msk_nii)
 		#endregion augmentation - noise
-		"""
+		
 
+		
 		#region augmentation - deformation
 		if aug_deform and (edeform[idx] == 1):
 			img_nii,  msk_nii = elastic_deformation(img_nii,  msk_nii)	
 		#endregion augmentation - deformation
-
+		"""
 
 		#region augmentation - write image
 		#imgFile_rot.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx]))
 		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_rot.replace("-n0","-n"+str(noise[idx]))))
 		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_rot.replace("-n0","-n"+str(noise[idx]))))
+		create_jsonFile(data_path=data_path)
 		#endregion augmentation - write image
 
 	

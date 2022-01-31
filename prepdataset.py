@@ -105,7 +105,7 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		img_resampled_nii, msk_resampled_nii   = resample_img(img_normalized_nii, msk_normalized_nii, input_dim)
 		
 		sitk.WriteImage(img_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgFile_aug))
-		sitk.WriteImage(img_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))
+		sitk.WriteImage(msk_resampled_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskFile_aug))
 		
 		print(imgaug_nii.GetSize(),"|", img_resampled_nii.GetSize())
 		print(mskaug_nii.GetSize(),"|", msk_resampled_nii.GetSize())
