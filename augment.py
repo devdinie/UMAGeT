@@ -17,8 +17,9 @@ aug_rotate    = True
 aug_normalize = True
 aug_noise     = True
 aug_deform    = True
+aug_spike     = True
 aug_ghost     = False
-aug_spike     = False
+
 
 def get_filelist(data_path):
 
@@ -187,12 +188,12 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		noise   = np.zeros(no_filenames_rot, dtype=int)
 
 	if aug_deform:
-		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
+		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.80])
 	else:
 		edeform = np.zeros(no_filenames_rot, dtype=int)
 	
 	if aug_spike:
-		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
+		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.80])
 	else:
 		spikes  = np.zeros(no_filenames_rot, dtype=int)
 	#endregion Initialize AUGMENTATION | Noise, Deform
@@ -213,24 +214,21 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 			img_nii,  msk_nii = add_noise(img_nii,msk_nii)
 		#endregion augmentation - noise
 		
-
 		#region augmentation - deformation
 		if aug_deform and (edeform[idx] == 1):
 			img_nii,  msk_nii = elastic_deformation(img_nii,  msk_nii)	
 		#endregion augmentation - deformation
 
-		"""
 		#region augmentation - spiking
 		if aug_spike and (spikes[idx] == 1):
 			img_nii = add_spiking(img_nii)
 		#endregion augmentation - spiking
-		"""
-		
+
 		#region augmentation - write image
 		#imgFile_rot.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx]))
 		
-		img_filename = imgFile_rot.replace("-n0-d0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]))
-		msk_filename = mskFile_rot.replace("-n0-d0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]))
+		img_filename = imgFile_rot.replace("-n0-d0-sp0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]) + "-sp"+str(spikes[idx]))
+		msk_filename = mskFile_rot.replace("-n0-d0-sp0", "-n"+str(noise[idx]) + "-d"+str(edeform[idx]) + "-sp"+str(spikes[idx]))
 
 		sitk.WriteImage(img_nii, os.path.join(settings.DATAPATH_INPUT,"brains"       , img_filename))
 		sitk.WriteImage(msk_nii, os.path.join(settings.DATAPATH_INPUT,"target_labels", msk_filename))
