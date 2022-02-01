@@ -10,7 +10,7 @@ import SimpleITK as sitk
 
 from augment	   import augment_data
 from createjson    import create_jsonFile
-from preprocess    import resample_img, normalize_img, split_image
+from preprocess    import resample_img, normalize_img, split_image, get_roi
 from scipy.ndimage import rotate
 
 def get_filelist(data_path):
@@ -91,6 +91,8 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		
 	for idx in range(0,len(filenames_aug)):
 		
+		print(idx)
+
 		#region Read filenames and image - brains & labels
 		imgFile_aug = filenames_aug[idx][0]
 		mskFile_aug = filenames_aug[idx][1]
@@ -104,7 +106,7 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		
 		#region Normalize and Resample
 		img_normalized_nii, msk_normalized_nii = normalize_img(imgaug_nii, mskaug_nii)
-		img_resampled_nii, msk_resampled_nii   = resample_img(img_normalized_nii, msk_normalized_nii, input_dim)
+		img_resampled_nii , msk_resampled_nii  = resample_img(img_normalized_nii, msk_normalized_nii, input_dim)
 		#endregion Normalize and Resample
 
 		#region Write augmented and preprocessed full image - brains and labels
@@ -113,30 +115,56 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		create_jsonFile(data_path=settings.DATAPATH_INPUT)
 		#endregion Write augmented and preprocessed full image - brains and labels
 		
-		#print(imgaug_nii.GetSize(),"|", img_resampled_nii.GetSize())
-		#print(mskaug_nii.GetSize(),"|", msk_resampled_nii.GetSize())
 		
-
+		#region generate brains and labels for network 1 and 2
 		mid_idx = np.around(input_dim[0]/2).astype(int)
 
-		imgL, imgR, mskL, mskR = split_image(img_resampled_nii, msk_resampled_nii, mid_idx)
+		imgL_nii, imgRorg_nii, mskL_nii, mskRorg_nii = split_image(img_resampled_nii, msk_resampled_nii, mid_idx)
 
-		imgL_resampled_nii, mskL_resampled_nii = resample_img(imgL, mskL, input_dim)
-		imgR_resampled_nii, mskR_resampled_nii = resample_img(imgR, mskR, input_dim)
+		imgR_nii = sitk.Flip(imgRorg_nii,[True,False,False])
+		mskR_nii = sitk.Flip(mskRorg_nii,[True,False,False])
 
-		imgR_resampled_nii = sitk.Flip(imgR_resampled_nii,[True,False,False])
-		mskR_resampled_nii = sitk.Flip(mskR_resampled_nii,[True,False,False])
+		mskL_nii, bboxL = get_roi(mskL_nii)
+		mskR_nii, bboxR = get_roi(mskR_nii)
+
+		[x1_L, y1_L, z1_L, x2_L, y2_L, z2_L] = bboxL
+		[x1_R, y1_R, z1_R, x2_R, y2_R, z2_R] = bboxR
 		
-		print(imgL_resampled_nii.GetSize(),"|",imgR_resampled_nii.GetSize())
+		imgL2_nii = imgL_nii[x1_L:x2_L, y1_L:y2_L, z1_L:z2_L]
+		imgR2_nii = imgR_nii[x1_R:x2_R, y1_R:y2_R, z1_R:z2_R]
 
-		#region Write augmented and preprocessed L|R separately - brains and labels
+		mskL2_nii = mskL_nii[x1_L:x2_L, y1_L:y2_L, z1_L:z2_L]
+		mskR2_nii = mskR_nii[x1_R:x2_R, y1_R:y2_R, z1_R:z2_R]
+
+		mskL_nii[x1_L:x2_L, y1_L:y2_L, z1_L:z2_L] = 1
+		mskR_nii[x1_R:x2_R, y1_R:y2_R, z1_R:z2_R] = 1
+
+		imgL_resampled_nii, mskL_resampled_nii = resample_img(imgL_nii, mskL_nii, input_dim)
+		imgR_resampled_nii, mskR_resampled_nii = resample_img(imgR_nii, mskR_nii, input_dim)
+
+		imgL2_resampled_nii, mskL2_resampled_nii = resample_img(imgL2_nii, mskL2_nii, input_dim)
+		imgR2_resampled_nii, mskR2_resampled_nii = resample_img(imgR2_nii, mskR2_nii, input_dim)
+		
+		#endregion generate brains and labels for network 1 and 2
+
+		#region Write input data for network 1 - brains and labels
 		sitk.WriteImage(imgL_resampled_nii, os.path.join(datapath_net1,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_L"))))
 		sitk.WriteImage(imgR_resampled_nii, os.path.join(datapath_net1,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_R"))))
 		
 		sitk.WriteImage(mskL_resampled_nii, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_L"))))
 		sitk.WriteImage(mskR_resampled_nii, os.path.join(datapath_net1,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_R"))))
 		
-		create_jsonFile(data_path=datapath_net1)
-		#endregion Write augmented and preprocessed L|R separately - brains and labels
+		#endregion WWrite input data for network 1 - brains and labels
 
+		#region WWrite input data for network 2 - brains and labels
+		sitk.WriteImage(imgL2_resampled_nii, os.path.join(datapath_net2,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_L"))))
+		sitk.WriteImage(imgR2_resampled_nii, os.path.join(datapath_net2,"brains"       , os.path.basename(imgFile_aug.replace("_t1","_t1_R"))))
+		
+		sitk.WriteImage(mskL2_resampled_nii, os.path.join(datapath_net2,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_L"))))
+		sitk.WriteImage(mskR2_resampled_nii, os.path.join(datapath_net2,"target_labels", os.path.basename(mskFile_aug.replace("_labels","_labels_R"))))
+
+		#endregion WWrite input data for network 2 - brains and labels
+		
+	create_jsonFile(data_path=datapath_net1)
+	create_jsonFile(data_path=datapath_net2)
 	#endregion PREPROCESS ALL PREPARED INPUT DATA brains | labels

@@ -168,8 +168,8 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 			img_aug, msk_aug, dir = rotate(img_nii, msk_nii, angles[idx], all_axes[axes[idx]])
 			dir_ang = dir+str(np.abs(angles[idx]))
 
-			imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii")
-			mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii")
+			imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
+			mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
 
 			sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
 			sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
@@ -188,12 +188,12 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		noise   = np.zeros(no_filenames_rot, dtype=int)
 
 	if aug_deform:
-		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.20,0.80])
+		edeform = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
 	else:
 		edeform = np.zeros(no_filenames_rot, dtype=int)
 	
 	if aug_spike:
-		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.20,0.80])
+		spikes  = np.random.choice([0,1]  , no_filenames_rot, p=[0.50,0.50])
 	else:
 		spikes  = np.zeros(no_filenames_rot, dtype=int)
 	#endregion Initialize AUGMENTATION | Noise, Deform

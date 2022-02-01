@@ -20,9 +20,6 @@ from scipy.ndimage.measurements import standard_deviation
 # These functions are performed regardless of augmentation
 
 def resample_img(img_nii, msk_nii, input_dim):
-
-    img_nii = img_nii
-    msk_nii = msk_nii
     
     reference_size = input_dim
 
@@ -34,6 +31,8 @@ def resample_img(img_nii, msk_nii, input_dim):
     reference_physicalsize[:] = [(sz-1)*spc if sz*spc>mx  else mx for sz,spc,mx in zip(msk_nii.GetSize(), msk_nii.GetSpacing(), reference_physicalsize)]
     reference_spacing = [ phys_sz/(sz-1) for sz,phys_sz in zip(reference_size, reference_physicalsize) ]
 
+    reference.SetSpacing(reference_spacing)
+
     msk_resampled = sitk.Resample(msk_nii, reference)
     img_resampled = sitk.Resample(img_nii, msk_resampled)
 
@@ -42,9 +41,10 @@ def resample_img(img_nii, msk_nii, input_dim):
 def normalize_img(img_nii, msk_nii):
 	
     img_arr  = sitk.GetArrayFromImage(img_nii)
+    msk_arr  = sitk.GetArrayFromImage(msk_nii)
 
     img_norm_arr = (img_arr - np.min(img_arr)) / (np.max(img_arr) - np.min(img_arr))
-    img_norm_nii     = sitk.GetImageFromArray(img_norm_arr)
+    img_norm_nii = sitk.GetImageFromArray(img_norm_arr)
     
     img_norm_nii.CopyInformation(img_nii)
     
@@ -64,7 +64,10 @@ def get_roi(msk):
     
     msk_arr = sitk.GetArrayFromImage(msk)
 
-    reserve = int(2)
+    msk_arr[msk_arr <= 0] = 0
+    msk_arr[msk_arr  > 0] = 1
+
+    reserve = int(15)
     X, Y, Z = msk_arr.shape[:3]
 
     idx = np.nonzero(msk_arr > 0)
@@ -80,8 +83,10 @@ def get_roi(msk):
 
     lower_idx = np.array([x1_idx,y1_idx,z1_idx], dtype='int')
     upper_idx = np.array([x2_idx,y2_idx,z2_idx], dtype='int')
-    
-    #bbox = [x1, y1, z1, x2, y2, z2]
+
     bbox = [lower_idx[0], lower_idx[1], lower_idx[2], upper_idx[0], upper_idx[1], upper_idx[2]]
+  
+    msk_nii = sitk.GetImageFromArray(msk_arr)
+    msk_nii.CopyInformation(msk)
     
-    return bbox
+    return msk_nii, bbox
