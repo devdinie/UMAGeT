@@ -90,8 +90,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 	filenames_aug = get_filelist(data_path=settings.DATAPATH_INPUT)
 		
 	for idx in range(0,len(filenames_aug)):
-		
-		print(idx)
 
 		#region Read filenames and image - brains & labels
 		imgFile_aug = filenames_aug[idx][0]
