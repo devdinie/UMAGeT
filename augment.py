@@ -135,8 +135,8 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		all_axes    = [(1, 0), (1, 2), (0, 2)]
 		axes        = np.random.choice(3,no_filenames) 
 		
-		angle_limit_neg = -8 
-		angle_limit_pos =  8
+		angle_limit_neg = -15 
+		angle_limit_pos =  15
 
 		prob_div    = np.around(1/(angle_limit_pos - angle_limit_neg),3)
 		angles_range= np.arange(angle_limit_neg, angle_limit_pos+1, 1)
