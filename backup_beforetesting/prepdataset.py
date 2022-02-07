@@ -26,20 +26,16 @@ def get_filelist(data_path):
     numFiles = experiment_data["numTraining"]
 
     filenames = {}
-    if settings.MODE == "training":
-	    for idx in range(numFiles):
-		    filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
-		    		      os.path.join(experiment_data["training"][idx]["label"])]
-    if settings.MODE == "testing":
-	    for idx in range(numFiles):
-		    filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
-		    		      os.path.join(experiment_data["testing"][idx]["label"])]
+    for idx in range(numFiles):
+        filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
+                          os.path.join(experiment_data["training"][idx]["label"])]
+        
     return filenames
 
 def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
-        
+	
 	input_dim=[settings.TILE_WIDTH,settings.TILE_HEIGHT,settings.TILE_DEPTH]
-        
+	
 	create_jsonFile(data_path=data_path)
 	
 	data_filetype = settings.IMAGE_FILETYPE
@@ -66,7 +62,7 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 
 	
 	#region PREPROCESS ALL PREPARED INPUT DATA brains | labels 	
-	filenames    = get_filelist(data_path=data_path)
+	filenames    = get_filelist(data_path=settings.DATA_PATH)
 
 	for idx in range(0,len(filenames)):
 		

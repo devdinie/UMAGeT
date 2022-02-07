@@ -59,9 +59,9 @@ def create_jsonFile(data_path):
                                      "1": "Hippocampus" }
     json_dict['numTraining']     = no_cases
 
-    if (settings.MODE == "testing"):
-        json_dict['testing']   = [{'image': os.path.join(brains_dir,"%s_%s.nii") % (i,j), 
-                                    "label": os.path.join(labels_dir,"%s_%s.nii") % (i,k)} for (i,j,k) in zip(cases,suffix_img,suffix_msk)]
+    if (data_path == settings.TESTDATA_PATH):
+        json_dict['testing']    = [{'image': os.path.join(brains_dir,"%s_%s_%s.nii") % (i,j,k), 
+                                     "label": os.path.join(labels_dir,"%s_%s_%s.nii") % (i,j,k)} for (i,j,k) in zip(cases,suffix_img,side)]
     else:
         json_dict['training']   = [{'image': os.path.join(brains_dir,"%s_%s.nii") % (i,j), 
                                     "label": os.path.join(labels_dir,"%s_%s.nii") % (i,k)} for (i,j,k) in zip(cases,suffix_img,suffix_msk)]

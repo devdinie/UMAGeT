@@ -20,16 +20,8 @@ import os
 
 ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
 TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
-
-MODE    = "testing"
-AUGMENT = False
-
-if MODE == "training":
-    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
-
-if MODE == "testing":
-    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/data_input")
 
 IMAGE_FILETYPE = "NiftiImageIO"
 
@@ -53,3 +45,6 @@ FILTERS       =16
 USE_UPSAMPLING=False
 
 RANDOM_SEED   =816
+
+MODE     ="train"
+AUGMENT  =True

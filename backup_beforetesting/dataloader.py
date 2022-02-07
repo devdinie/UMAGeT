@@ -69,16 +69,9 @@ class DatasetGenerator:
         self.aug_rot_arr = np.random.choice([-7, -5, -2, 0, 2, 5, 7], self.numFiles, p=[0.03, 0.07, 0.10, 0.60, 0.10, 0.07, 0.03 ])
 
         self.filenames = {}
-        
-        if settings.MODE == "training":
-            for idx in range(self.numFiles):
-                self.filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
-                                       os.path.join(experiment_data["training"][idx]["label"])]
-
-        if settings.MODE == "testing":
-            for idx in range(self.numFiles):
-                self.filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
-                                       os.path.join(experiment_data["testing"][idx]["label"])]
+        for idx in range(self.numFiles):
+            self.filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
+                                   os.path.join(experiment_data["training"][idx]["label"])]
 
     def print_info(self):
         
