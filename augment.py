@@ -142,13 +142,15 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		angles_range= np.arange(angle_limit_neg, angle_limit_pos+1, 1)
 		rot_prob    = [prob_div]*(angle_limit_pos+1 - angle_limit_neg) #scipy.stats.norm.pdf(angles_range,0,1)
 		
+		"""
 		if sum(rot_prob) != 1:
 			sub = 1 - sum(rot_prob)
 			rot_prob[0] += sub/2
 			rot_prob[len(rot_prob)-1] += sub/2
 		
 		angles =  np.random.choice(angles_range, no_filenames, p=rot_prob)
-
+		"""
+	
 	for idx in range(0,len(filenames)):
 		
 		imgFile = filenames[idx][0]
@@ -163,16 +165,17 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		img_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
 		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
 
-		if aug_rotate and (np.abs(angles[idx]) != 0):
-			
-			img_aug, msk_aug, dir = rotate(img_nii, msk_nii, angles[idx], all_axes[axes[idx]])
-			dir_ang = dir+str(np.abs(angles[idx]))
+		# If rotate is true, then for each angle within range, rotate and save
+		if aug_rotate:
+			for rot_angle in range(angle_limit_neg,angle_limit_pos):	
+				img_aug, msk_aug, dir = rotate(img_nii, msk_nii, rot_angle, all_axes[axes[idx]])
+				dir_ang = dir+str(np.abs(rot_angle))
 
-			imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
-			mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
+				imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
+				mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
 
-			sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
-			sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
+				sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+				sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
 	
 	create_jsonFile(data_path=data_path)
 	#endregion AUGMENTATION | Rotation
