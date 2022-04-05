@@ -43,12 +43,14 @@ input_dim         = (args.tile_height, args.tile_width,args.tile_depth)
 training_datapath = os.path.join(settings.DATA_PATH,network_dir)
 #endregion Initialization
 
+"""
 # region DATA PREP
 if do_preprocessing == True:
     print("- Preprocessing data ...")
     prepdata(data_path=args.data_path)
     print("- Preprocessing complete.")
 # endregion DATA PREP
+"""
 
 #region DATA GENERATOR
 print("- Starting data generator for network {} ...".format(args.network))
@@ -96,6 +98,7 @@ print("- Training network {} complete . Time taken {:.4f}".format(args.network, 
 #endregion NETWORK: TRAIN_MODEL
 
 #region NETWORK: EVALUATE MODEL
+local_opt = K.optimizers.Adam()
 print("- Evaluating network {} model ...".format(args.network))
 best_model = K.models.load_model(model_name, custom_objects={"dice_loss": dice_loss,
                                                              "dice_coef": dice_coef, 

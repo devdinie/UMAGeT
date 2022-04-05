@@ -26,11 +26,11 @@ def get_filelist(data_path):
     numFiles = experiment_data["numTraining"]
 
     filenames = {}
-    if settings.MODE == "training":
+    if settings.MODE == "train":
 	    for idx in range(numFiles):
 		    filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
 		    		      os.path.join(experiment_data["training"][idx]["label"])]
-    if settings.MODE == "testing":
+    if settings.MODE == "test":
 	    for idx in range(numFiles):
 		    filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
 		    		      os.path.join(experiment_data["testing"][idx]["label"])]
@@ -78,7 +78,6 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
 		
 		img_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
 		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
-		
 
 		imgFile_aug = os.path.basename(imgFile).replace("_t1"    , "_t1_"+"norm"+"-rC0-n0-d0-sp0-gh0")
 		mskFile_aug = os.path.basename(mskFile).replace("_labels", "_labels_"+"norm"+"-rC0-n0-d0-sp0-gh0")

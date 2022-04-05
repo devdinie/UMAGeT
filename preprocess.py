@@ -11,6 +11,7 @@ import skimage
 import nilearn.masking
 import skimage.morphology
 
+from skimage import exposure
 from matplotlib.pyplot import axes
 from skimage.transform import resize
 
@@ -44,6 +45,8 @@ def normalize_img(img_nii, msk_nii):
     msk_arr  = sitk.GetArrayFromImage(msk_nii)
 
     img_norm_arr = (img_arr - np.min(img_arr)) / (np.max(img_arr) - np.min(img_arr))
+
+    img_norm_arr = exposure.equalize_adapthist(img_norm_arr)
     img_norm_nii = sitk.GetImageFromArray(img_norm_arr)
     
     img_norm_nii.CopyInformation(img_nii)
@@ -60,14 +63,14 @@ def split_image(img, msk, mid_idx):
     
     return imgL, imgR, mskL, mskR
 
-def get_roi(msk):
+def get_roi(msk, reserve=2):
     
     msk_arr = sitk.GetArrayFromImage(msk)
 
     msk_arr[msk_arr <= 0] = 0
     msk_arr[msk_arr  > 0] = 1
 
-    reserve = int(15)
+    reserve = reserve
     X, Y, Z = msk_arr.shape[:3]
 
     idx = np.nonzero(msk_arr > 0)

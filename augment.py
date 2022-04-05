@@ -14,10 +14,10 @@ from createjson import create_jsonFile
 from preprocess import resample_img
 
 aug_rotate    = True
-aug_normalize = True
-aug_noise     = True
-aug_deform    = True
-aug_spike     = True
+aug_normalize = False
+aug_noise     = False
+aug_deform    = False
+aug_spike     = False
 aug_ghost     = False
 
 

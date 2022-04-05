@@ -22,13 +22,13 @@ ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
 TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
 
-MODE    = "testing"
-AUGMENT = False
+MODE    = "test"
+AUGMENT = True
 
-if MODE == "training":
+if MODE == "train":
     DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
 
-if MODE == "testing":
+if MODE == "test":
     DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/data_input")
 
 IMAGE_FILETYPE = "NiftiImageIO"
@@ -36,7 +36,7 @@ IMAGE_FILETYPE = "NiftiImageIO"
 SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
 SAVED_MODEL2_NAME = "UNET2_SEGMENT"
 
-EPOCHS     =10
+EPOCHS     =100
 BATCH_SIZE =1
 TILE_HEIGHT=144
 TILE_WIDTH =144

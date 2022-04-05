@@ -50,6 +50,7 @@ if do_preprocessing == True:
     print("- Preprocessing complete.")
 # endregion DATA PREP
 
+
 #region DATA GENERATOR
 print("- Starting data generator for network {} ...".format(args.network))
 
@@ -114,3 +115,4 @@ best_model.compile(loss="binary_crossentropy", metrics=["accuracy"],optimizer="a
 K.models.save_model(best_model, best_model_name, include_optimizer=False)
 print("- Saving network {} model complete.".format(args.network))
 #endregion NETWORK: SAVE MODEL
+

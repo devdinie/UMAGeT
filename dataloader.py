@@ -35,8 +35,11 @@ class DatasetGenerator:
         self.number_output_classes = number_output_classes
 
         self.create_file_list()
-
-        self.ds_train, self.ds_val, self.ds_test = self.get_dataset()
+        
+        if settings.MODE == "train":
+            self.ds_train, self.ds_val, self.ds_test, self.ds_testn = self.get_dataset()
+        else:
+            self.ds_testn = self.get_dataset()
 
     def create_file_list(self):
         
@@ -70,12 +73,12 @@ class DatasetGenerator:
 
         self.filenames = {}
         
-        if settings.MODE == "training":
+        if settings.MODE == "train":
             for idx in range(self.numFiles):
                 self.filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
                                        os.path.join(experiment_data["training"][idx]["label"])]
 
-        if settings.MODE == "testing":
+        if settings.MODE == "test":
             for idx in range(self.numFiles):
                 self.filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
                                        os.path.join(experiment_data["testing"][idx]["label"])]
@@ -96,7 +99,7 @@ class DatasetGenerator:
         print("="*30)
 
 
-    def read_nifti_file(self, idx, augment=False):
+    def read_nifti_file(self, idx, itest=False):
 
         # Read Nifti file
 
@@ -120,7 +123,10 @@ class DatasetGenerator:
         img = np.expand_dims(img, -1)
         msk = np.expand_dims(msk, -1)
         
-        return img, msk
+        if ((settings.MODE == "train") and not itest):
+            return img, msk
+        else:
+            return imgFile, img, msk
 
 
     def get_train(self):
@@ -132,6 +138,11 @@ class DatasetGenerator:
         # Return test dataset
         
         return self.ds_test
+    
+    def get_testn(self):
+        # Return test dataset
+        
+        return self.ds_testn
 
     def get_validate(self):
         # Return validation dataset
@@ -139,51 +150,82 @@ class DatasetGenerator:
         return self.ds_val
 
     def get_dataset(self):
-        """
-        Create a TensorFlow data loader
-        """
-        self.num_train = int(self.numFiles * self.train_test_split)
-        numValTest     = self.numFiles - self.num_train
-
-        ds = tf.data.Dataset.range(self.numFiles).shuffle(self.numFiles, self.random_seed)  # Shuffle the dataset
-
-        """
-        Horovod Sharding
-        Here we are not actually dividing the dataset into shards
-        but instead just reshuffling the training dataset for every
-        shard. Then in the training loop we just go through the training
-        dataset but the number of steps is divided by the number of shards.
-        """
-        ds_train     = ds.take(self.num_train).shuffle(self.num_train, self.shard)  # Reshuffle based on shard
-        ds_val_test  = ds.skip(self.num_train)
-        self.num_val = int(numValTest * self.validate_test_split)
-        self.num_test= self.num_train - self.num_val
-        
-        ds_val  = ds_val_test.take(self.num_val)
-        ds_test = ds_val_test.skip(self.num_val)
-
-        ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], [tf.float32, tf.float32]), 
-                                                        num_parallel_calls=tf.data.experimental.AUTOTUNE)
     
-        ds_val   = ds_val.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-                                                    
-        ds_test  = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        #Create a TensorFlow data loader
         
-        ds_train = ds_train.repeat()
-        ds_train = ds_train.batch(self.batch_size)
-        ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
-
-        batch_size_val = 4
-        ds_val = ds_val.batch(batch_size_val)
-        ds_val = ds_val.prefetch(tf.data.experimental.AUTOTUNE)
-
-        batch_size_test = 1
-        ds_test = ds_test.batch(batch_size_test)
-        ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
-
-        return ds_train, ds_val, ds_test
+        self.num_train = int(self.numFiles * self.train_test_split)
+        
+        
+        if settings.MODE == "train":
+            
+            numValTest     = self.numFiles - self.num_train
+            
+            ds = tf.data.Dataset.range(self.numFiles).shuffle(self.numFiles, self.random_seed)  # Shuffle the dataset
+            
+            ds_train     = ds.take(self.num_train).shuffle(self.num_train, self.shard)  # Reshuffle based on shard
+        
+            ds_val_test  = ds.skip(self.num_train)
+            self.num_val = int(numValTest * self.validate_test_split)
+            self.num_test= self.num_train - self.num_val
+        
+            ds_val  = ds_val_test.take(self.num_val)
+            ds_test = ds_val_test.skip(self.num_val)
+            ds_testn = ds_test
+        
+            ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
+                                                             [tf.float32, tf.float32]), 
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            
+            ds_val   = ds_val.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
+                                                           [tf.float32, tf.float32]),
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            
+            ds_test  = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
+                                                            [tf.float32, tf.float32]),
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            
+            ds_testn  = ds_testn.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], 
+                                                            [tf.string, tf.float32, tf.float32]),
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            
+            ds_train = ds_train.repeat()
+            ds_train = ds_train.batch(self.batch_size)
+            ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
+            
+            batch_size_val = 4
+            ds_val = ds_val.batch(batch_size_val)
+            ds_val = ds_val.prefetch(tf.data.experimental.AUTOTUNE)
+            
+            batch_size_test = 1
+            ds_test = ds_test.batch(batch_size_test)
+            ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
+            
+            batch_size_test = 1
+            ds_testn = ds_testn.batch(batch_size_test)
+            ds_testn = ds_testn.prefetch(tf.data.experimental.AUTOTUNE)
+            
+            return ds_train, ds_val, ds_test, ds_testn
+        
+        else:
+            ds = tf.data.Dataset.range(self.numFiles).shuffle(self.numFiles, self.random_seed)
+            ds_testn = ds.take(self.numFiles).shuffle(self.numFiles, self.shard)
+            """
+            ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
+                                                            [tf.string, tf.float32, tf.float32]), 
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            
+            ds_val   = ds_val.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
+                                                           [tf.string, tf.float32, tf.float32]),
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            """
+            ds_testn  = ds_testn.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], 
+                                                            [tf.string, tf.float32, tf.float32]),
+                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
+            batch_size_test = 1
+            ds_testn = ds_testn.batch(batch_size_test)
+            ds_testn = ds_testn.prefetch(tf.data.experimental.AUTOTUNE)
+            
+            return ds_testn
 
 
 if __name__ == "__main__":
