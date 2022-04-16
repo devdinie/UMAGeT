@@ -15,10 +15,13 @@ from preprocess import resample_img
 
 aug_rotate    = True
 aug_normalize = False
-aug_noise     = False
+aug_noise     = True
 aug_deform    = False
 aug_spike     = False
 aug_ghost     = False
+
+# Merge augmentation matrix [Rotation Noise]
+merge_aug = np.array([True,False],dtype=bool)
 
 
 def get_filelist(data_path):
@@ -63,12 +66,11 @@ def rotate(img, msk,angle,axes):
 
 	return img_rot, msk_rot, dir
 
-def add_noise(img,msk):
+def add_noise(img,msk, noise_perc):
 	
 	img_arr   = sitk.GetArrayFromImage(img)
 	
-	noise_percentage = np.around(np.random.choice((0.025,0.050,0.075,0.100,0.125),1),2)[0]
-	standard_dev     = np.max(img_arr)*noise_percentage
+	standard_dev     = np.max(img_arr)*noise_perc
 
 	shape_x = np.int(img_arr.shape[0])
 	shape_y = np.int(img_arr.shape[1])
@@ -138,19 +140,15 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		angle_limit_neg = -15 
 		angle_limit_pos =  15
 
-		prob_div    = np.around(1/(angle_limit_pos - angle_limit_neg),3)
-		angles_range= np.arange(angle_limit_neg, angle_limit_pos+1, 1)
-		rot_prob    = [prob_div]*(angle_limit_pos+1 - angle_limit_neg) #scipy.stats.norm.pdf(angles_range,0,1)
-		
-		"""
-		if sum(rot_prob) != 1:
-			sub = 1 - sum(rot_prob)
-			rot_prob[0] += sub/2
-			rot_prob[len(rot_prob)-1] += sub/2
-		
-		angles =  np.random.choice(angles_range, no_filenames, p=rot_prob)
-		"""
-	
+		rot_rands = np.random.randint(0,2,no_filenames*(angle_limit_pos-angle_limit_neg))
+		rot_rands_idx = 0
+
+	if(aug_noise):
+		noise_perc_min  =  2
+		noise_perc_max  = 25
+
+		noise_perc_increment = 2
+
 	for idx in range(0,len(filenames)):
 		
 		imgFile = filenames[idx][0]
@@ -167,20 +165,34 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 
 		# If rotate is true, then for each angle within range, rotate and save
 		if aug_rotate:
-			for rot_angle in range(angle_limit_neg,angle_limit_pos):	
+			for rot_angle in range(angle_limit_neg,angle_limit_pos+1):	
 				img_aug, msk_aug, dir = rotate(img_nii, msk_nii, rot_angle, all_axes[axes[idx]])
-				dir_ang = dir+str(np.abs(rot_angle))
+				#dir_ang = dir+str(np.abs(rot_angle))
+				dir_ang = dir+str(f'{np.abs(rot_angle):02}')
 
-				imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
-				mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n0-d0-sp0-gh0.nii")
+				imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n00-d0-sp0-gh0.nii")
+				mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n00-d0-sp0-gh0.nii")
 
 				sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
 				sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
-	
+
+
+		if aug_noise:
+			for noise_perc in range(noise_perc_min, noise_perc_max+1, noise_perc_increment):
+				img_aug, msk_aug = add_noise(img_aug, msk_aug, noise_perc)
+				
+				imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-rC00"+"-n"+str(f'{noise_perc:02}')+"-d0-sp0-gh0.nii")
+				mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-rC00"+"-n"+str(f'{noise_perc:02}')+"-d0-sp0-gh0.nii")
+
+				sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+				sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
+
+		
 	create_jsonFile(data_path=data_path)
 	#endregion AUGMENTATION | Rotation
 
-	
+		
+	"""
 	#region Initialize AUGMENTATION | Noise, Deform
 	filenames_rot    = get_filelist(data_path)
 	no_filenames_rot = len(filenames_rot)
@@ -236,7 +248,7 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		
 		create_jsonFile(data_path=data_path)
 		#endregion augmentation - write image
-
+	"""
 	
 	
 

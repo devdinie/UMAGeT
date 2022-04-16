@@ -22,7 +22,7 @@ ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
 TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
 
-MODE    = "test"
+MODE    = "train"
 AUGMENT = True
 
 if MODE == "train":
