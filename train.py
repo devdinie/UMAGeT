@@ -4,12 +4,12 @@ import settings
 
 import tensorflow as tf 
 
-from tensorflow  import keras as K
-from argparser   import args
-from prepdataset import prepdata
-from dataloader  import DatasetGenerator
-from model       import dice_coef, soft_dice_coef, dice_loss, unet_3d
-from time        import perf_counter
+from tensorflow   import keras as K
+from argparser    import args
+from prepare_data import prepdata
+from dataloader   import DatasetGenerator
+from model        import dice_coef, soft_dice_coef, dice_loss, unet_3d
+from time         import perf_counter
 
 
 def test_intel_tensorflow():
