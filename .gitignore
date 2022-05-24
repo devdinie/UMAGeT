@@ -3,7 +3,6 @@ Check_aug.ipynb
 checklabels.ipynb
 check_raw.ipynb
 aug.ipynb
-*.ipynb
 
 #Project specifics
 2D/output/*
