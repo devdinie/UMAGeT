@@ -18,16 +18,26 @@
 #
 import os
 
-ROOT_DIR         = os.path.join(os.path.dirname(__file__),"..")
-DATA_PATH        = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
-DATA_PATH_AUG    = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_aug")
-TESTDATA_PATH    = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
+DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+
+MODE    = "train"
+AUGMENT = True
+
+if MODE == "train":
+    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
+
+if MODE == "test":
+    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/data_input")
+
+IMAGE_FILETYPE = "NiftiImageIO"
 
 SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
 SAVED_MODEL2_NAME = "UNET2_SEGMENT"
 
-EPOCHS     =100
-BATCH_SIZE =1
+EPOCHS     =40
+BATCH_SIZE =2
 TILE_HEIGHT=144
 TILE_WIDTH =144
 TILE_DEPTH =144
@@ -35,7 +45,7 @@ TILE_DEPTH =144
 NUMBER_INPUT_CHANNELS=1
 NUMBER_OUTPUT_CLASSES=1
 
-TRAIN_TEST_SPLIT   =0.80
+TRAIN_TEST_SPLIT   =0.60
 VALIDATE_TEST_SPLIT=0.50
 
 PRINT_MODEL   =False
@@ -43,6 +53,3 @@ FILTERS       =16
 USE_UPSAMPLING=False
 
 RANDOM_SEED   =816
-
-MODE     ="training"
-AUGMENT  =True

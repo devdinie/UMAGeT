@@ -124,4 +124,3 @@ def unet_3d(input_dim, filters=args.filters,
                 model.summary()
             
             return model
-
