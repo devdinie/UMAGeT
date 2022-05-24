@@ -26,6 +26,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--mode",
                     default=settings.MODE,
                     help="Train or test")
+parser.add_argument("--network",
+                    default=2,
+                    help="Network 1 or 2")
 parser.add_argument("--root_dir",
                     default=settings.ROOT_DIR,
                     help="Root directory for model and all dev code")

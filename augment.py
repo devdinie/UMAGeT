@@ -1,29 +1,25 @@
 import os
 import json
-import math
-from SimpleITK.SimpleITK import GetArrayFromImage
-from matplotlib.pyplot import axes
-from numpy.core.fromnumeric import reshape, shape
 import scipy
-import nilearn.masking
-from scipy.ndimage.measurements import standard_deviation
-import torchio
 import skimage
-import skimage.morphology
 import settings
-
-from settings   import DATA_PATH
-from createjson import create_jsonFile
-
-import numpy as np
+import torchio
+import numpy     as np
 import SimpleITK as sitk
+import nilearn.masking
+import skimage.morphology
+
+from createjson import create_jsonFile
+from preprocess import resample_img
 
 aug_rotate    = True
-aug_normalize = True
+aug_normalize = False
 aug_noise     = True
-aug_deform    = False
+aug_deform    = True
+aug_spike     = True
 aug_ghost     = False
-aug_spike     = False
+
+data_filetype = settings.IMAGE_FILETYPE #"NiftiImageIO"
 
 def get_filelist(data_path):
 
@@ -43,61 +39,35 @@ def get_filelist(data_path):
                           os.path.join(experiment_data["training"][idx]["label"])]
         
     return filenames
-
-def normalize(img,msk):
-	
-	img_arr  = sitk.GetArrayFromImage(img)
-	img_norm_arr = (img_arr - np.mean(img_arr))/(np.std(img_arr))
-	img_norm = sitk.GetImageFromArray(img_norm_arr)
-
-	msk_arr = sitk.GetArrayFromImage(msk)
-	msk_arr[msk_arr > 0.5 ] =   1
-	msk_arr[msk_arr <= 0.5] =   0
-	msk_norm = sitk.GetImageFromArray(msk_arr)
-
-	img_norm.CopyInformation(img)
-	msk_norm.CopyInformation(msk)
-
-	norm = 1
-	return img_norm, msk_norm, norm
-
-def n4correction(img):
-	
-	img_corr = sitk.Cast(img, sitk.sitkFloat32)
-
-	n4corrector     = sitk.N4BiasFieldCorrectionImageFilter()
-	n4corrected_img = n4corrector.Execute(img_corr)
-	
-	return n4corrected_img
-
+    
 def rotate(img, msk,angle,axes):
-	
-	img_arr = sitk.GetArrayFromImage(img)
-	msk_arr = sitk.GetArrayFromImage(msk)
 
-	img_rot_arr = scipy.ndimage.rotate(img_arr, angle, axes=axes, reshape=False)
-	msk_rot_arr = scipy.ndimage.rotate(msk_arr, angle, axes=axes, reshape=False)
+	img_resampled, msk_resampled= resample_img(img,msk,msk.GetSize())
+
+	img_arr = sitk.GetArrayFromImage(img_resampled)
+	msk_arr = sitk.GetArrayFromImage(msk_resampled)
+
+	if angle < 0 :
+		angle = 360 + angle
+
+	img_rot_arr = scipy.ndimage.rotate(img_arr, angle, axes=axes, reshape=True)
+	msk_rot_arr = scipy.ndimage.rotate(msk_arr, angle, axes=axes, reshape=True)
 
 	msk_rot_arr[msk_rot_arr > 0.5 ] =   1
 	msk_rot_arr[msk_rot_arr <= 0.5] =   0
 
 	img_rot = sitk.GetImageFromArray(img_rot_arr)
 	msk_rot = sitk.GetImageFromArray(msk_rot_arr)
-
-	img_rot.CopyInformation(img)
-	msk_rot.CopyInformation(msk)
 	
-	
-	dir = 'C' if angle >= 0 else 'A'
+	dir = 'C' if angle <= 300 else 'A'
 
 	return img_rot, msk_rot, dir
-	
-def add_noise(img,msk):
+
+def add_noise(img,msk, noise_perc):
 	
 	img_arr   = sitk.GetArrayFromImage(img)
 	
-	noise_percentage = np.around(np.random.choice((0.025,0.050,0.075,0.100,0.125),1),2)[0]
-	standard_dev     = np.max(img_arr)*noise_percentage
+	standard_dev     = np.max(img_arr)*noise_perc
 
 	shape_x = np.int(img_arr.shape[0])
 	shape_y = np.int(img_arr.shape[1])
@@ -115,264 +85,283 @@ def add_noise(img,msk):
 	img_wnoise.CopyInformation(img)
 		
 	return img_wnoise, msk
-	
-def elastic_deformation(img, msk):
 
+def elastic_deformation(img, msk, num_ctrl_points, locked_borders, max_displacement):
+	
 	img_arr = sitk.GetArrayFromImage(img)
 	msk_arr = sitk.GetArrayFromImage(msk)
 
-	# Display grid to visualize deformation
-	#N=25
-	#white = np.max(img_arr)
-	#img_arr[..., ::N, :, : ] = white
-	#img_arr[..., :, ::N, : ] = white
-	
-	max_displacement = np.random.randint(10,20,3)
-	random_elastic = torchio.RandomElasticDeformation(max_displacement=max_displacement)
-	
+	random_elastic = torchio.RandomElasticDeformation(num_control_points=num_ctrl_points,
+							  locked_borders=locked_borders,
+							   max_displacement=max_displacement)
+				
 	img_def_arr = random_elastic(np.expand_dims(img_arr,axis=0))
 	msk_def_arr = random_elastic(np.expand_dims(msk_arr,axis=0))
 
 	msk_def_arr[msk_def_arr >  np.min(msk_arr)] = 1
 	msk_def_arr[msk_def_arr <= np.min(msk_arr)] = 0
 
-	print(img_def_arr.shape,"|",msk_def_arr.shape)
+	#print(img_def_arr.shape,"|",msk_def_arr.shape)
+
 	img_def = sitk.GetImageFromArray(np.squeeze(img_def_arr,axis=0))
 	msk_def = sitk.GetImageFromArray(np.squeeze(msk_def_arr,axis=0))
 
 	img_def.CopyInformation(img)
 	msk_def.CopyInformation(msk)
 
-	#print(img_def.GetSize(),"|", msk_def.GetSize())
 	return img_def, msk_def
 
-def add_ghosting(img, no_ghosts):
+def add_spiking(img, num_spikes, intensity):
 
-	add_ghosts = torchio.RandomGhosting(num_ghosts=np.int(no_ghosts), intensity=1) 
-	img_ghosted = add_ghosts(img)
-
-	return img_ghosted
-
-def add_spiking(img):
-
-	img_msk  = sitk.GetArrayFromImage(img)
-	img_msk[img_msk>0] = 1
-
-	spikes_list  = [(1, 1), (1, 2), (0, 1), (0, 2), (2, 2)]
-	spikes_choice= np.random.choice(5,1) 
-
-	add_spikes = torchio.RandomSpike(num_spikes=spikes_list[spikes_choice[0]])
-	img_spiked = add_spikes(img)
+	spikes = torchio.RandomSpike(num_spikes=num_spikes,intensity=intensity)
+	img_spiked = spikes(img)
 
 	return img_spiked
 
-def augment_data(data_path):
+def augment_data(data_path=settings.DATAPATH_INPUT):
 
 	print(data_path)
-
-	data_path_aug = os.path.join(data_path,"data_aug")
 	
 	filenames     = get_filelist(data_path)
 	no_filenames  = len(filenames)	
-	
-	#region Initialize AUGMENTATION | Rotation
-	if(aug_rotate):
-		all_axes    = [(1, 0), (1, 2), (0, 2)]
-		axes        = np.random.choice(3,no_filenames) 
-		
-		angle_limit_neg = -8 
-		angle_limit_pos =  8
 
-		prob_div    = np.around(1/(angle_limit_pos - angle_limit_neg),3)
-		angles_range= np.arange(angle_limit_neg, angle_limit_pos+1, 1)
-		rot_prob    = [prob_div]*(angle_limit_pos+1 - angle_limit_neg) #scipy.stats.norm.pdf(angles_range,0,1)
+	if(aug_rotate):
+
+		angle_limit_neg = -15 
+		angle_limit_pos =  15
+
+		rot_inc  = 3
+		all_axes = [(1, 0), (1, 2), (0, 2)]
+
+	if(aug_noise):
+		noise_perc_min  =  2
+		noise_perc_max  = 25
+
+		noise_perc_increment = 2
+
+	if(aug_spike):
+		no_spikes_arr  = [(1, 1), (1, 2), (0, 1), (0, 2)]
+		intensity_arr  = [(1, 2), (1, 3), (1, 4)]
+
+	if(aug_deform):
 		
-		if sum(rot_prob) != 1:
-			sub = 1 - sum(rot_prob)
-			rot_prob[0] += sub/2
-			rot_prob[len(rot_prob)-1] += sub/2
-		
-		angles =  np.random.choice(angles_range, no_filenames, p=rot_prob)
-	#endregion Initialize AUGMENTATION | Rotation
-        
+		maxdisplacement_min = 10 ; maxdisplacement_max = 13 ; displacement_inc = 1
+
+		locked_borders   =  2
+		ctrl_points_list = np.arange(maxdisplacement_min,maxdisplacement_max)
+	
+	print("Augmentation - adding augmentation types individually... ")
 	for idx in range(0,len(filenames)):
 		
 		imgFile = filenames[idx][0]
 		mskFile = filenames[idx][1]
-		
+
 		if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
 			continue
 
-		subject_id = os.path.basename(imgFile).split("_")[0]
+		subject_id    = os.path.basename(imgFile).split("_")[0]
 
-		print(imgFile,"|",mskFile)
+		img_nii = sitk.ReadImage(imgFile, imageIO=data_filetype)
+		msk_nii = sitk.ReadImage(mskFile, imageIO=data_filetype)
+
+		#region AUGMENTATION | rotation only
+
+		# If rotate is true, then for each angle within range, rotate and save
 		
-		#region READ brains | Labels : Raw data
-		ext = os.path.basename(imgFile).split(".")[1]
-		data_filetype = "MINCImageIO" if ext == "mnc" else "NiftiImageIO" if ext == "nii" else print("File format incompatible. Consider editing source code.")
+		if aug_rotate:
+			for rot_angle in range(angle_limit_neg,angle_limit_pos+1,rot_inc):
+				if rot_angle == 0:
+					img_aug = img_nii
+					msk_aug = msk_nii
+					dir_ang = "C"+str(f'{np.abs(rot_angle):02}')
 
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(imgFile)
-		img = reader.Execute()
+					imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n00-d0-sp0000-gh0.nii")
+					mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n00-d0-sp0000-gh0.nii")
+				else:
+					for axes in all_axes:
+						img_aug, msk_aug, dir = rotate(img_nii, msk_nii, rot_angle, axes)
+						dir_ang = dir+str(f'{np.abs(rot_angle):02}')
+						# print(dir_ang,"|",axes)
+
+						imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-r"+dir_ang+"-n00-d00-sp0000-gh0.nii")
+						mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-r"+dir_ang+"-n00-d00-sp0000-gh0.nii")
+
+						sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+						sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
 		
-		ext = os.path.basename(mskFile).split(".")[1]
-		data_filetype = "MINCImageIO" if ext == "mnc" else "NiftiImageIO" if ext == "nii" else print("File format incompatible. Consider editing source code.")
+		#endregion AUGMENTATION | rotation only
 
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(mskFile)
-		msk = reader.Execute()
-		#endregion READ brains | Labels : Raw data
-
-		if not os.path.exists(data_path_aug):
-			os.mkdir(data_path_aug)
-
-		if not os.path.exists(os.path.join(data_path_aug,"brains")):
-			os.mkdir(os.path.join(data_path_aug,"brains"))
-
-		if not os.path.exists(os.path.join(data_path_aug,"target_labels")):
-			os.mkdir(os.path.join(data_path_aug,"target_labels"))
+		#region AUGMENTATION | noise only
 		
-		#region AUGMENTATION: NORMALIZE
-		norm = 0 
-		if aug_normalize:
-			img_norm, msk_norm, norm = normalize(img, msk)
-		else:
-			img_norm = img
-			msk_norm = msk
-		#endregion AUGMENTATION: NORMALIZE
+		if aug_noise:
+			img_aug = img_nii
+			msk_aug = msk_nii
+			for noise_perc in range(noise_perc_min, noise_perc_max+1, noise_perc_increment):
 
-		#region WRITE brains | Labels : No Rotation, Normalized
+				img_aug, msk_aug = add_noise(img_nii, msk_nii, noise_perc)
+				
+				imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"+"norm"+"-rC00"+"-n"+str(f'{noise_perc:02}')+"-d00-sp0000-gh0.nii")
+				mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm"+"-rC00"+"-n"+str(f'{noise_perc:02}')+"-d00-sp0000-gh0.nii")
+
+				sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+				sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
 		
-		dir_ang = "C0"
+		#endregion AUGMENTATION | noise only
+
+		#region AUGMENTATION | spiking only
 		
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(os.path.join(data_path_aug,"brains", subject_id+"_t1_"+"norm"+str(norm)+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii"))
-		writer.Execute(img_norm)
+		if aug_spike:
+			img_aug = img_nii
+			msk_aug = msk_nii
+			for no_spikes in no_spikes_arr:
+				for intensity in intensity_arr:
+					img_aug = add_spiking(img_nii, no_spikes,intensity)
 
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(os.path.join(data_path_aug,"target_labels", subject_id+"_labels_"+"norm"+str(norm)+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii"))
-		writer.Execute(msk_norm)
-		#endregion WRITE brains | Labels : No Rotation, Normalized
+					imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"    +"norm-rC00-n00"+"-d00"+"-sp"+str(no_spikes[0])+str(no_spikes[1])+str(intensity[0])+str(intensity[1])+"-gh0.nii")
+					mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm-rC00-n00"+"-d00"+"-sp"+str(no_spikes[0])+str(no_spikes[1])+str(intensity[0])+str(intensity[1])+"-gh0.nii")
+
+					sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+					sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
 		
-		#region WRITE brains | Labels : Rotated, Normalized
-		if aug_rotate and (np.abs(angles[idx]) != 0):
-			img_rot, msk_rot, dir = rotate(img_norm, msk_norm,angles[idx],all_axes[axes[idx]])
-			dir_ang = dir+str(np.abs(angles[idx]))
+		#endregion AUGMENTATION | spiking only
+		
+		#region AUGMENTATION | deformation only
+		if aug_deform:
 
-			writer = sitk.ImageFileWriter()
-			writer.SetImageIO("NiftiImageIO")
-			writer.SetFileName(os.path.join(data_path_aug,"brains", subject_id+"_t1_"+"norm"+str(norm)+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii"))
-			writer.Execute(img_rot)
+			img_aug = img_nii
+			msk_aug = msk_nii
 
-			writer = sitk.ImageFileWriter()
-			writer.SetImageIO("NiftiImageIO")
-			writer.SetFileName(os.path.join(data_path_aug,"target_labels", subject_id+"_labels_"+"norm"+str(norm)+"-r"+dir_ang+"-n0-d0-gh0-sp0.nii"))
-			writer.Execute(msk_rot)
-		#endregion WRITE brains | Labels : Rotated, Normalized
+			img_arr = sitk.GetArrayFromImage(img_nii)
+			msk_arr = sitk.GetArrayFromImage(msk_nii)
+			
+			for max_displacement in range(maxdisplacement_min, maxdisplacement_max+1, displacement_inc):
+				
+				num_ctrl_points = np.int(np.random.choice(ctrl_points_list))
+				
+				bounds = np.round(np.array(img_nii.GetSize()) * np.array(img_nii.GetSpacing()) + np.array((0.125,)*3),2)
+				grid_spacing = bounds / np.subtract((num_ctrl_points,)*3,(locked_borders,)*3)
 
-	create_jsonFile(data_path=data_path_aug)
+				dmax_total = round(np.sqrt(3*np.square(max_displacement)),2)
+				
+				# Sanity check
+				#print(max_displacement,num_ctrl_points,np.round(np.array(grid_spacing)/2,2),(np.round(np.array(grid_spacing)/2,2)<dmax_total),np.all(np.round(np.array(grid_spacing)/2,2)<dmax_total),dmax_total)
+				
+				if (np.all(np.round(np.array(grid_spacing)/2,2) < dmax_total)):
 
-	filenames_aug    = get_filelist(data_path_aug)
-	no_filenames_aug = len(filenames_aug)
+					img_aug, msk_aug = elastic_deformation(img_aug, msk_aug, num_ctrl_points, locked_borders, max_displacement)
 
-	#region Initialize AUGMENTATION | Noise, Deformation, Ghosting, Spiking
+					img_aug.CopyInformation(img_nii)
+					msk_aug.CopyInformation(msk_nii)
+
+					imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"    +"norm-rC00-n00"+"-d"+str(f'{max_displacement:02}')+"-sp0000"+"-gh0.nii")
+					mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+"norm-rC00-n00"+"-d"+str(f'{max_displacement:02}')+"-sp0000"+"-gh0.nii")
+
+					sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+					sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
+		#endregion AUGMENTATION | deformation only
+	print("Augmentation - adding augmentation types individually complete.")
+	create_jsonFile(data_path=data_path)
+	
+
+	#region Initialize AUGMENTATION | Combined Augmentatio 
+	filenames_comb_aug    = get_filelist(data_path)
+	no_filenames_comb_aug = len(filenames_comb_aug)
+
 	if aug_noise:
-		noise   = np.random.randint(0,2,no_filenames_aug)
+		noise = np.random.choice([0,1], no_filenames_comb_aug, p=[0.30,0.70])
 	else:
-		noise   = np.zeros(no_filenames_aug, dtype=int)
-
-	if aug_deform:
-		edeform = np.random.choice([0,1]  , no_filenames_aug, p=[0.50,0.50])
-	else:
-		edeform = np.zeros(no_filenames_aug, dtype=int)
-
-	if aug_ghost:
-		ghosts  = np.random.choice([0,1,2], no_filenames_aug, p=[0.40,0.30,0.30])
-	else:
-		ghosts  = np.zeros(no_filenames_aug, dtype=int)
+		noise = np.zeros(no_filenames_comb_aug, dtype=int)
 
 	if aug_spike:
-		spikes  = np.random.choice([0,1]  , no_filenames_aug, p=[0.50,0.50])
+		spikes  = np.random.choice([0,1]  , no_filenames_comb_aug, p=[0.30,0.70])
 	else:
-		spikes  = np.zeros(no_filenames_aug, dtype=int)
-	#endregion Initialize AUGMENTATION | Noise, Deformation, Ghosting, Spiking
+		spikes  = np.zeros(no_filenames_comb_aug, dtype=int)
+
+	if aug_deform:
+		edeform = np.random.choice([0,1]  , no_filenames_comb_aug, p=[0.30,0.70])
+	else:
+		edeform = np.zeros(no_filenames_comb_aug, dtype=int)
 	
-	for idx in range(0,len(filenames_aug)):
-		
-		#region READ brains | Labels : rotated & normalized 
-		imgFile_aug = filenames_aug[idx][0]
-		mskFile_aug = filenames_aug[idx][1]
+	print("Augmentation - adding combined augmentation ... ")
+	for idx in range(0,len(filenames_comb_aug)):
+
+		imgFile_aug = filenames_comb_aug[idx][0]
+		mskFile_aug = filenames_comb_aug[idx][1]
+
+		subject_id    = os.path.basename(imgFile_aug).split("_")[0]
+
+		[augname_norm, augname_r, augname_n, augname_d, augname_sp, augname_gh] = os.path.basename(imgFile_aug).split('_')[2].split('.')[0].split('-')
+		aug_inFilename = [augname_norm, augname_r, augname_n, augname_d, augname_sp, augname_gh]
+
+		#print(idx,":",os.path.basename(imgFile_aug),":",aug_inFilename, int(augname_n[1:3]), (not int(augname_n[1:3]) !=0))
 		
 		if not (os.path.exists(imgFile_aug) or os.path.exists(mskFile_aug)):
 			continue
 
-		ext = os.path.basename(imgFile).split(".")[1]
-		data_filetype = "MINCImageIO" if ext == "mnc" else "NiftiImageIO" if ext == "nii" else print("File format incompatible. Consider editing source code.")
-
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(imgFile_aug)
-		img_aug = reader.Execute()
+		img_aug = sitk.ReadImage(imgFile_aug, imageIO=data_filetype)
+		msk_aug = sitk.ReadImage(mskFile_aug, imageIO=data_filetype)
 		
-		ext = os.path.basename(mskFile).split(".")[1]
-		data_filetype = "MINCImageIO" if ext == "mnc" else "NiftiImageIO" if ext == "nii" else print("File format incompatible. Consider editing source code.")
+		#region augmentation - noise
+		if aug_noise and (not augname_n[1:3] !='00') and (noise[idx] == 1):
 
-		reader = sitk.ImageFileReader()
-		reader.SetImageIO(data_filetype)
-		reader.SetFileName(mskFile_aug)
-		msk_aug = reader.Execute()
+			noise_perc = np.random.choice(range(noise_perc_min,noise_perc_max+1))
+			img_aug, msk_aug  = add_noise(img_aug, msk_aug, noise_perc)
 
-		img_aug_suff = os.path.splitext(imgFile_aug)[0]
-		msk_aug_suff = os.path.splitext(mskFile_aug)[0]
-		#endregion READ brains | Labels : rotated & normalized 
-
-		#region AUGMENTATION: ADD NOISE
-		if aug_noise and (noise[idx] == 1):
-			img_wnoise, msk = add_noise(img_aug,msk_aug)
+			n_forFilename  = "n"+str(f'{noise_perc:02}')
+			noise_combined = True
 		else:
-			img_wnoise = img_aug
-			msk = msk_aug
-		#endregion AUGMENTATION: ADD NOISE
+			n_forFilename = "n00"
+			noise_combined = False
+		#endregion augmentation - noise
 
-		#region AUGMENTATION: DEFORMATION
-		if aug_deform and (edeform[idx] == 1):
-			img_edef, msk_edef = elastic_deformation(img_wnoise, msk)	
+		#region augmentation - spiking
+		if aug_spike and (not augname_sp[2:6] != '0000') and (spikes[idx] == 1):
+
+			no_spikes = no_spikes_arr[int(np.random.choice(len(no_spikes_arr),1))]
+			intensity = intensity_arr[int(np.random.choice(len(intensity_arr),1))]
+			
+			img_aug = add_spiking(img_aug, no_spikes,intensity)
+
+			sp_forFilename = "sp"+str(no_spikes[0])+str(no_spikes[1])+str(intensity[0])+str(intensity[1])
+			spike_combined = True
 		else:
-			img_edef = img_wnoise 
-			msk_edef = msk
-		#endregion AUGMENTATION: DEFORMATION
+			sp_forFilename = "sp0000"
+			spike_combined = False
+		#endregion augmentation - spiking
+
 		
-		#region AUGMENTATION: GHOSTING
-		msk_ghosted = msk_edef
-		if aug_ghost and (ghosts[idx] == 1):
-			img_ghosted = add_ghosting(img_edef, ghosts[idx])
+		#region augmentation - deformation
+		if aug_deform and (not augname_d[1:3] != '00') and (edeform[idx] == 1):
+			
+			num_ctrl_points = np.int(np.random.choice(ctrl_points_list))
+			max_displacement = np.random.choice(range(maxdisplacement_min,maxdisplacement_max+1))
+
+			bounds = np.round(np.array(img_aug.GetSize()) * np.array(img_aug.GetSpacing()) + np.array((0.125,)*3),2)
+			grid_spacing = bounds / np.subtract((num_ctrl_points,)*3,(locked_borders,)*3)
+			
+			dmax_total = round(np.sqrt(3*np.square(max_displacement)),2)
+			
+			if (np.all(np.round(np.array(grid_spacing)/2,2) < dmax_total)):
+				img_aug, msk_aug = elastic_deformation(img_aug, msk_aug, num_ctrl_points, locked_borders, max_displacement)
+			
+			def_forFilename = "d"+str(f'{max_displacement:02}')
+			def_combined = True
 		else:
-			img_ghosted = img_edef
-		#endregion AUGMENTATION: GHOSTING
+			def_forFilename = "d00"
+			def_combined = False
+		#endregion augmentation - deformation
 
-		#region AUGMENTATION: SPIKING
-		msk_spiked = msk_ghosted
-		if aug_spike and (spikes[idx] == 1):
-			img_spiked = add_spiking(img_ghosted)
-		else:
-			img_spiked = img_ghosted
-		#endregion AUGMENTATION: SPIKING
+		
+		#region augmentation - write image
+		imgaugFile = os.path.join(data_path,"brains"       , subject_id+"_t1_"    +augname_norm+"-"+augname_r+"-"+n_forFilename+"-"+def_forFilename+"-"+sp_forFilename+"-gh0.nii")
+		mskaugFile = os.path.join(data_path,"target_labels", subject_id+"_labels_"+augname_norm+"-"+augname_r+"-"+n_forFilename+"-"+def_forFilename+"-"+sp_forFilename+"-gh0.nii")
 
-		#region WRITE brains | Labels : Noised, Deformed, Ghosted, Spiked
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(imgFile_aug.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx])))
-		writer.Execute(img_spiked)
+		#print(os.path.basename(imgaugFile))
 
-		writer = sitk.ImageFileWriter()
-		writer.SetImageIO("NiftiImageIO")
-		writer.SetFileName(mskFile_aug.replace("-n0-d0-gh0-sp0","-n"+str(noise[idx])+"-d"+str(edeform[idx])+"-gh"+str(ghosts[idx])+"-sp"+str(spikes[idx])))
-		writer.Execute(msk_spiked)
-		#endregion WRITE brains | Labels : Noised, Deformed, Ghosted, Spiked
-	
-	
-	
+		if(noise_combined or spike_combined or def_combined):
+			sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
+			sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
+		
+		#endregion augmentation - write image
+	print("Augmentation - adding combined augmentation complete.")
+	create_jsonFile(data_path=data_path)
