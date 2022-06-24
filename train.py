@@ -19,10 +19,15 @@ def test_intel_tensorflow():
  
     print("Tensorflow version {}".format(tf.__version__))
     
-    from tensorflow.python import _pywrap_util_port
+    from tensorflow.python.util import _pywrap_util_port
+    #from tensorflow.python import _pywrap_util_port
     print("Intel-optimizations (DNNL) enabled:",_pywrap_util_port.IsMklEnabled())  
 
 test_intel_tensorflow()
+gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+for device in gpu_devices:
+	tf.config.experimental.set_memory_growth(device, True)
+
 
 #region Initialization 
 if args.network == "1":
@@ -43,14 +48,6 @@ input_dim         = (args.tile_height, args.tile_width,args.tile_depth)
 training_datapath = os.path.join(settings.DATA_PATH,network_dir)
 #endregion Initialization
 
-"""
-# region DATA PREP
-if do_preprocessing == True:
-    print("- Preprocessing data ...")
-    prepdata(data_path=args.data_path)
-    print("- Preprocessing complete.")
-# endregion DATA PREP
-"""
 
 #region DATA GENERATOR
 print("- Starting data generator for network {} ...".format(args.network))

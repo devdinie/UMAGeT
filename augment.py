@@ -1,6 +1,5 @@
 import os
 import json
-import math
 import scipy
 import skimage
 import settings
@@ -151,7 +150,7 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 		locked_borders   =  2
 		ctrl_points_list = np.arange(maxdisplacement_min,maxdisplacement_max)
 	
-	print("Augmentation - adding one type of augmentation ... ")
+	print("Augmentation - adding augmentation types individually... ")
 	for idx in range(0,len(filenames)):
 		
 		imgFile = filenames[idx][0]
@@ -260,7 +259,7 @@ def augment_data(data_path=settings.DATAPATH_INPUT):
 					sitk.WriteImage(img_aug, os.path.join(settings.DATAPATH_INPUT,"brains"       , imgaugFile))
 					sitk.WriteImage(msk_aug, os.path.join(settings.DATAPATH_INPUT,"target_labels", mskaugFile))
 		#endregion AUGMENTATION | deformation only
-	print("Augmentation - adding one type of augmentation complete.")
+	print("Augmentation - adding augmentation types individually complete.")
 	create_jsonFile(data_path=data_path)
 	
 

@@ -103,7 +103,7 @@ def prepdata(data_path=settings.DATA_PATH, augmentation=settings.AUGMENT):
         imgFile_aug = filenames_aug[idx][0]
         mskFile_aug = filenames_aug[idx][1]
 
-        if not (os.path.exists(imgFile) or os.path.exists(mskFile)):
+        if not (os.path.exists(imgFile_aug) or os.path.exists(mskFile)):
             continue
 
         imgaug_nii = sitk.ReadImage(imgFile_aug, imageIO=data_filetype)
