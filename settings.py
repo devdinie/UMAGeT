@@ -15,9 +15,50 @@
 # limitations under the License.
 #
 # SPDX-License-Identifier: EPL-2.0
-#
+# Adapted from  intel https://github.com/IntelAI/unet
+
 import os
 
+#region define mode and main directory paths
+"""
+# Define directory paths with respect to current working directory
+# Setting if data augmentation is required (in train mode only)
+"""
+
+mode = "train"
+augment = True
+
+root_dir = os.path.join(os.path.dirname(__file__),"..")
+data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
+testdata_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+
+augdata_dname = "data_aug" 
+#endregion define mode and main directory paths
+
+#region image related settings
+img_size = (144,144,144)
+imgio_type = "NiftiImageIO"
+#endregion image related settings
+
+#region data and model related settings
+"""
+# Names used to save the models
+# Ratio to split dataset for training and testing (train_test_split)
+# From the percentage of dataset for testing, ratio to split between
+# validation and testing
+"""
+loc_model_name = "net1_model_localize"
+seg_model_name = "net2_model_segment"
+
+train_test_split = 0.6
+validate_test_split = 0.5
+
+filters = 16
+use_upsampling = True
+#endregion data and model related settings
+
+r
+"""
 ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
 TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
@@ -53,3 +94,4 @@ FILTERS       =16
 USE_UPSAMPLING=False
 
 RANDOM_SEED   =816
+"""
