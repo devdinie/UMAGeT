@@ -47,17 +47,22 @@ imgio_type = "NiftiImageIO"
 # From the percentage of dataset for testing, ratio to split between
 # validation and testing
 """
-loc_model_name = "net1_model_localize"
-seg_model_name = "net2_model_segment"
-
+batch_size = 2
 train_test_split = 0.6
 validate_test_split = 0.5
 
+loc_model_name = "net1_model_localize"
+seg_model_name = "net2_model_segment"
+
+epochs = 40
 filters = 16
-use_upsampling = True
+use_upsampling = True #Use upsampling instead of transposed convolution
+
+no_input_classes = 1
+no_output_classes = 1
 #endregion data and model related settings
 
-r
+
 """
 ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
 DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
