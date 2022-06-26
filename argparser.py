@@ -20,27 +20,34 @@
 import settings
 import argparse
 
-parser = argparse.ArgumentParser(
-    description="Train 3D U-Net model", add_help=True,
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description="3D U-Net model", 
+                                 add_help=True, formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument("--mode", default=settings.mode,
-                    help="Train or test")
+                    help="Mode to use the network in\n"
+                         +"To train : --mode train\n"
+                         +"To test  : --mode test")
+
+parser.add_argument("--augment",
+                    default=settings.augment,
+                    help="Set to --augment False if augmentation of input data is not required\n"
+                         +"Set to --augment True  if augmented data needs to be generated from input data\n"
+                         +"True (as defined in settings) by default")
 
 parser.add_argument("--network", default=2,
-                    help="Network 1 or 2")
+                    help="The network used within the given mode\n"
+                    +"Input: --network 1 for localization\n" 
+                    +"       --network 2 for segmentation\n")
 
 parser.add_argument("--epochs", type=int, default=settings.epochs,
-                    help="Number of epochs")
+                    help="Number of epochs to train the network")
 
-parser.add_argument("--number_output_classes", type=int,
+parser.add_argument("--output_classes", type=int,
                     default=settings.no_output_classes,
                     help="Number of output classes")
 
 parser.add_argument("--train_test_split", type=float,
                     default=settings.train_test_split,
-                    help="Split between train and test data (value between 0 and 1))")
-parser.add_argument("--augment_inputs",
-                    default=settings.AUGMENT,
-                    help="To input ")
+                    help="Split ratio between train and test data (value between 0 and 1)")
+
 args = parser.parse_args()

@@ -26,13 +26,16 @@ import os
 """
 
 mode = "train"
-augment = True
+#mode = "test"
+augment = False
+is_overwrite = True
 
 root_dir = os.path.join(os.path.dirname(__file__),"..")
 data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
-testdata_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
+testdata_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"testdata/")
 
-augdata_dname = "data_aug" 
+labels_available = os.path.exists(os.path.join(data_dir,"target_labels"))
+augdata_dname = "data_input" 
 #endregion define mode and main directory paths
 
 #region image related settings
@@ -44,59 +47,23 @@ imgio_type = "NiftiImageIO"
 """
 # Names used to save the models
 # Ratio to split dataset for training and testing (train_test_split)
-# From the percentage of dataset for testing, ratio to split between
-# validation and testing
+# From the remaining test dataset, the ratio to split between
+# validation and testing data (test dataset = no. files - train data)
+# test dataset = {validation data, test data}
 """
+random_seed= 816
+
 batch_size = 2
 train_test_split = 0.6
 validate_test_split = 0.5
 
-loc_model_name = "net1_model_localize"
-seg_model_name = "net2_model_segment"
+net1_loc_modelname = "net1_model_localize"
+net2_seg_modelname = "net2_model_segment"
 
 epochs = 40
 filters = 16
 use_upsampling = True #Use upsampling instead of transposed convolution
 
 no_input_classes = 1
-no_output_classes = 1
+no_output_classes= 1
 #endregion data and model related settings
-
-
-"""
-ROOT_DIR       = os.path.join(os.path.dirname(__file__),"..")
-DATA_PATH      = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
-TESTDATA_PATH  = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/")
-
-MODE    = "train"
-AUGMENT = True
-
-if MODE == "train":
-    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/data_input")
-
-if MODE == "test":
-    DATAPATH_INPUT = os.path.join(os.path.dirname(os.path.dirname(__file__)),"testData/data_input")
-
-IMAGE_FILETYPE = "NiftiImageIO"
-
-SAVED_MODEL1_NAME = "UNET1_LOCALIZE"
-SAVED_MODEL2_NAME = "UNET2_SEGMENT"
-
-EPOCHS     =40
-BATCH_SIZE =2
-TILE_HEIGHT=144
-TILE_WIDTH =144
-TILE_DEPTH =144
-
-NUMBER_INPUT_CHANNELS=1
-NUMBER_OUTPUT_CLASSES=1
-
-TRAIN_TEST_SPLIT   =0.60
-VALIDATE_TEST_SPLIT=0.50
-
-PRINT_MODEL   =False
-FILTERS       =16
-USE_UPSAMPLING=False
-
-RANDOM_SEED   =816
-"""
