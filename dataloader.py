@@ -1,134 +1,107 @@
+from asyncore import read
 import os
+import json
 import settings
 
+import numpy as np
+import SimpleITK as sitk
+import tensorflow as tf
+
+from argparser import args
+
+import nibabel as nib
+"""
 import scipy
 import numpy   as np
 import nibabel as nib
 
-import tensorflow as tf
-
 from scipy.ndimage     import rotate
 from skimage.transform import resize
-class DatasetGenerator:
-
+"""
+class dataset_generator:
+    
     def __init__(self, input_dim,
-                 root_dir=settings.ROOT_DIR,
-                 data_path=settings.DATA_PATH,
-                 batch_size=settings.BATCH_SIZE,
-                 train_test_split=settings.TRAIN_TEST_SPLIT,
-                 validate_test_split=settings.VALIDATE_TEST_SPLIT,
-                 number_output_classes=settings.NUMBER_OUTPUT_CLASSES,
-                 random_seed=settings.RANDOM_SEED,
-                 augment=settings.AUGMENT,
-                 shard=0):
+                 root_dir=settings.root_dir,
+                 data_dir=settings.data_dir,
+                 batch_size=settings.batch_size,
+                 train_test_split=settings.train_test_split,
+                 validate_test_split=settings.validate_test_split,
+                 no_output_classes=settings.no_output_classes,
+                 random_seed=settings.random_seed, shard=0):
 
         self.shard      = shard      # For Horovod, gives different shard per worker
         self.input_dim  = input_dim
         self.batch_size = batch_size
         self.random_seed= random_seed
-        self.augment    = augment
         self.root_dir   = root_dir
-        self.data_path  = data_path
+        self.data_dir   = data_dir
         
-        self.train_test_split      = train_test_split
-        self.validate_test_split   = validate_test_split
-        self.number_output_classes = number_output_classes
+        self.no_output_classes = no_output_classes
+        self.train_test_split  = train_test_split
+        self.validate_test_split = validate_test_split
 
         self.create_file_list()
         
-        if settings.MODE == "train":
-            self.ds_train, self.ds_val, self.ds_test, self.ds_testn = self.get_dataset()
+        if not (args.mode == "test"):
+            self.ds_train, self.ds_validate, self.ds_test = self.get_train_dataset()
         else:
-            self.ds_testn = self.get_dataset()
-
+            self.ds_test = self.get_test_dataset()
+    
+            
+    #region create dictionary with dataset information
     def create_file_list(self):
-        
-        #Get list of the files from the input data. Split into training and testing sets.
-
-        import os
-        import json
-
-        json_filename = os.path.join(self.data_path, "dataset.json")
-
+         
         try:
-            with open(json_filename, "r") as fp:
+            with open(os.path.join(self.data_dir, "dataset_dict.json"), "r") as fp:
                 experiment_data = json.load(fp)
         except IOError as e:
             print("File {} doesn't exist. It should be located in the directory named 'data' ".format(json_filename))
-
-        self.name            = experiment_data["name"]
-        self.output_channels = experiment_data["labels"]
-        self.release         = experiment_data["release"]
-        self.license         = experiment_data["licence"]
-        self.input_channels  = experiment_data["modality"]
-        self.reference       = experiment_data["reference"]
-        self.description     = experiment_data["description"]
-        self.numFiles        = experiment_data["numTraining"]
-        self.tensorImageSize = experiment_data["tensorImageSize"]
-
-        # Create a dictionary of tuples with image filename and label filename
+           
         
-        self.aug_flp_arr = np.random.choice([0, 1], self.numFiles, p=[0.6, 0.4])
-        self.aug_rot_arr = np.random.choice([-7, -5, -2, 0, 2, 5, 7], self.numFiles, p=[0.03, 0.07, 0.10, 0.60, 0.10, 0.07, 0.03 ])
-
+        self.name            = experiment_data["name"]
+        self.description     = experiment_data["description"]
+        self.reference       = experiment_data["reference"]
+        self.input_channels  = experiment_data["modality"]
+        
         self.filenames = {}
         
-        if settings.MODE == "train":
-            for idx in range(self.numFiles):
+        self.output_channels = experiment_data["labels"]
+            
+        if not (args.mode == "test"):
+            self.no_files = experiment_data["numTraining"]
+            for idx in range(self.no_files):
                 self.filenames[idx] = [os.path.join(experiment_data["training"][idx]["image"]),
-                                       os.path.join(experiment_data["training"][idx]["label"])]
-
-        if settings.MODE == "test":
-            for idx in range(self.numFiles):
-                self.filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
-                                       os.path.join(experiment_data["testing"][idx]["label"])]
-
-    def print_info(self):
-        
-        #Print the dataset information
-
-        print("="*30)
-        print("Dataset name:        ", self.name)
-        print("Dataset release:     ", self.release)
-        print("Dataset license:     ", self.license)
-        print("Dataset reference:   ", self.reference)
-        print("Dataset description: ", self.description)
-        print("Input channels:      ", self.input_channels)
-        print("Output labels:       ", self.output_channels)
-        print("Tensor image size:   ", self.tensorImageSize)
-        print("="*30)
-
-
+                                       os.path.join(experiment_data["training"][idx]["label"])]     
+        else:
+            self.no_files = experiment_data["numTesting"] 
+            for idx in range(self.no_files):
+                if settings.labels_available:
+                    for idx in range(self.no_files):
+                        self.filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
+                                               os.path.join(experiment_data["testing"][idx]["label"])] 
+                else: 
+                    self.filenames[idx] = [os.path.join(experiment_data["testing"][idx]["image"])]      
+    #endregion create dictionary with dataset information
+    
+    #region function to read input images  
     def read_nifti_file(self, idx, itest=False):
 
-        # Read Nifti file
-
         idx = idx.numpy()
-        imgFile = self.filenames[idx][0]
-        mskFile = self.filenames[idx][1]
+        img_fname = self.filenames[idx][0]
+        msk_fname = self.filenames[idx][1]
         
-        img_aff = nib.load(imgFile).affine
-        msk_aff = nib.load(mskFile).affine
-
-        img = np.array(nib.load(imgFile).dataobj)
-        msk = np.array(nib.load(mskFile).dataobj)
-
-
-        """
-        "labels": {
-             "0": "background",
-             "1": "Hippocampus"}
-        """
-
-        img = np.expand_dims(img, -1)
-        msk = np.expand_dims(msk, -1)
+        img_file = sitk.ReadImage(img_fname, imageIO=settings.imgio_type)
+        msk_file = sitk.ReadImage(msk_fname, imageIO=settings.imgio_type)
         
-        if ((settings.MODE == "train") and not itest):
-            return img, msk
-        else:
-            return imgFile, img, msk
+        img_arr = sitk.GetArrayFromImage(img_file)
+        msk_arr = sitk.GetArrayFromImage(img_file)
+      
+        img_arr = np.expand_dims(img_arr, -1)
+        msk_arr = np.expand_dims(msk_arr, -1)
+        print(img_arr.shape, msk_arr.shape)
+        return img_arr, msk_arr
 
-
+    """
     def get_train(self):
         # Return train dataset
     
@@ -139,107 +112,70 @@ class DatasetGenerator:
         
         return self.ds_test
     
-    def get_testn(self):
-        # Return test dataset
-        
-        return self.ds_testn
-
     def get_validate(self):
         # Return validation dataset
 
         return self.ds_val
-
-    def get_dataset(self):
+    """
+    #region get training dataset
+    """
+    # Get number of training data based on train_test_split
+    """
+    def get_train_dataset(self):
+        
+        self.no_train = int(self.no_files * self.train_test_split)
+        self.no_validate = int((self.no_files - self.no_train)*self.validate_test_split)
+        self.no_test  = int(self.no_files - (self.no_train+self.no_validate))
+        
+        ds = tf.data.Dataset.range(self.no_files).shuffle(self.no_files, self.random_seed)  # Shuffle the dataset
+        
+        ds_train = ds.take(self.no_train).shuffle(self.no_train, self.shard)  # Reshuffle based on shard
+        ds_val_test = ds.skip(self.no_train)
+        
+        ds_test = ds_val_test.skip(self.no_validate)
+        ds_validate = ds_val_test.take(self.no_validate)
+        
+        
+        ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], [tf.float32, tf.float32]),
+                                num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                            
+        ds_validate = ds_validate.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]),
+                                        num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        
+        ds_test = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]), 
+                                num_parallel_calls=tf.data.experimental.AUTOTUNE)
+                  
+        ds_train = ds_train.repeat()
+        ds_train = ds_train.batch(self.batch_size)
+        ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
+        
+        batch_size_val = 2
+        ds_validate = ds_validate.batch(batch_size_val)
+        ds_validate = ds_validate.prefetch(tf.data.experimental.AUTOTUNE)
+        
+        batch_size_test = 1
+        ds_test = ds_test.batch(batch_size_test)
+        ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
+        
+        return ds_train, ds_validate, ds_test
+    #endregion get training dataset
     
-        #Create a TensorFlow data loader
+    def get_test_dataset(self):
         
-        self.num_train = int(self.numFiles * self.train_test_split)
+        ds = tf.data.Dataset.range(self.no_files).shuffle(self.no_files, self.random_seed)
+        ds_test = ds.take(self.no_files)
         
+        ds_test = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]), 
+                                num_parallel_calls=tf.data.experimental.AUTOTUNE)
         
-        if settings.MODE == "train":
-            
-            numValTest     = self.numFiles - self.num_train
-            
-            ds = tf.data.Dataset.range(self.numFiles).shuffle(self.numFiles, self.random_seed)  # Shuffle the dataset
-            
-            ds_train     = ds.take(self.num_train).shuffle(self.num_train, self.shard)  # Reshuffle based on shard
+        batch_size_test = 1
+        ds_test = ds_test.batch(batch_size_test)
+        ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
         
-            ds_val_test  = ds.skip(self.num_train)
-            self.num_val = int(numValTest * self.validate_test_split)
-            self.num_test= self.num_train - self.num_val
+        return ds_test
         
-            ds_val  = ds_val_test.take(self.num_val)
-            ds_test = ds_val_test.skip(self.num_val)
-            ds_testn = ds_test
-        
-            ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
-                                                             [tf.float32, tf.float32]), 
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            
-            ds_val   = ds_val.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
-                                                           [tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            
-            ds_test  = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
-                                                            [tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            
-            ds_testn  = ds_testn.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], 
-                                                            [tf.string, tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            
-            ds_train = ds_train.repeat()
-            ds_train = ds_train.batch(self.batch_size)
-            ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
-            
-            batch_size_val = 4
-            ds_val = ds_val.batch(batch_size_val)
-            ds_val = ds_val.prefetch(tf.data.experimental.AUTOTUNE)
-            
-            batch_size_test = 1
-            ds_test = ds_test.batch(batch_size_test)
-            ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
-            
-            batch_size_test = 1
-            ds_testn = ds_testn.batch(batch_size_test)
-            ds_testn = ds_testn.prefetch(tf.data.experimental.AUTOTUNE)
-            
-            return ds_train, ds_val, ds_test, ds_testn
-        
-        else:
-            ds = tf.data.Dataset.range(self.numFiles).shuffle(self.numFiles, self.random_seed)
-            ds_testn = ds.take(self.numFiles).shuffle(self.numFiles, self.shard)
-            """
-            ds_train = ds_train.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
-                                                            [tf.string, tf.float32, tf.float32]), 
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            
-            ds_val   = ds_val.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], 
-                                                           [tf.string, tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            """
-            ds_testn  = ds_testn.map(lambda x: tf.py_function(self.read_nifti_file, [x, True], 
-                                                            [tf.string, tf.float32, tf.float32]),
-                                                    num_parallel_calls=tf.data.experimental.AUTOTUNE)
-            batch_size_test = 1
-            ds_testn = ds_testn.batch(batch_size_test)
-            ds_testn = ds_testn.prefetch(tf.data.experimental.AUTOTUNE)
-            
-            return ds_testn
-
-
 if __name__ == "__main__":
-
-    print("Load the data and plot a few examples")
-
-    from argparser import args
-    
-    input_dim = (args.tile_height, args.tile_width, args.tile_depth, args.number_input_channels)
-
-    # Load the dataset
-    
-    data = DatasetGenerator(input_dim, data_path=args.data_path, batch_size=args.batch_size,
-                            train_test_split=args.train_test_split, validate_test_split=args.validate_test_split,
-                            number_output_classes=args.number_output_classes, random_seed=args.random_seed)
-
-    data.print_info()
+    # Load the dataset    
+    data = dataset_generator(input_dim, data_dir=data_dir, batch_size=args.batch_size,
+                             train_test_split=args.train_test_split, validate_test_split=args.validate_test_split,
+                             number_output_classes=args.number_output_classes, random_seed=args.random_seed)
