@@ -1,66 +1,101 @@
 import os
-import datetime
-import settings
-
+import time
+import shutil
 import tensorflow as tf 
 
-from tensorflow   import keras as K
-from argparser    import args
-from prepare_data import prepdata
-from dataloader   import DatasetGenerator
-from model        import dice_coef, soft_dice_coef, dice_loss, unet_3d
-from time         import perf_counter
+import augment
+import settings
 
 
+from argparser  import args
+from preprocess import preprocess_data
+from createjson import create_json_file
+from dataloader import dataset_generator
+
+from tensorflow import keras as K
+
+#from prepare_data import prepdata
+#from dataloader   import DatasetGenerator
+#from model        import dice_coef, soft_dice_coef, dice_loss, unet_3d
+
+#region GPU and tensorflow info
+"""
+# Check if Intel version of TensorFlow is installed
+# Get GPU information
+"""
 def test_intel_tensorflow():
-    # Check if Intel version of TensorFlow is installed
-    
-    import tensorflow as tf
- 
-    print("Tensorflow version {}".format(tf.__version__))
-    
+    print("Tensorflow version {}".format(tf.__version__))  
     from tensorflow.python.util import _pywrap_util_port
-    #from tensorflow.python import _pywrap_util_port
     print("Intel-optimizations (DNNL) enabled:",_pywrap_util_port.IsMklEnabled())  
 
 test_intel_tensorflow()
 gpu_devices = tf.config.experimental.list_physical_devices('GPU')
 for device in gpu_devices:
 	tf.config.experimental.set_memory_growth(device, True)
+#endregion GPU and tensorflow info
 
 
-#region Initialization 
-if args.network == "1":
-    network_dir = "data_net1"
-    model_name  = args.saved_model1_name
-    do_preprocessing = True
-elif args.network == "2":
-    network_dir = "data_net2" 
-    model_name  = args.saved_model2_name
-    do_preprocessing = False
-else:
-    network_dir = "data_net2" 
-    model_name  = args.saved_model2_name
-    do_preprocessing = False
-    print("Network not defined. Set to --network 2 parameters by default.")
+def main():
+    #region initialization
+    """
+    # Assign model name to load based on input arguments
+    """ 
 
-input_dim         = (args.tile_height, args.tile_width,args.tile_depth)
-training_datapath = os.path.join(settings.DATA_PATH,network_dir)
-#endregion Initialization
+    if args.network == "1":
+        net_dname  = "data_net1"
+        model_name = settings.net1_loc_modelname
+    elif args.network == "2":
+        net_dname  = "data_net2"
+        model_name = settings.net2_seg_modelname
+    else:
+        net_dname = "data_net2" 
+        model_name= settings.net2_seg_modelname
+        print("Network not given as input. Proceeding with default network --network 2.")
+
+    input_dim = settings.img_size
+    
+    datainput_dir= os.path.join(settings.data_dir,settings.augdata_dname)
+    datanet1_dir = os.path.join(settings.data_dir,settings.net1data_dname)
+    datanet2_dir = os.path.join(settings.data_dir,settings.net2data_dname)
+    
+    if settings.is_overwrite and (os.path.exists(datainput_dir)):
+        shutil.rmtree(datainput_dir)
+    if settings.is_overwrite and (os.path.exists(datanet1_dir)):
+        shutil.rmtree(datanet1_dir)
+    if settings.is_overwrite and (os.path.exists(datanet2_dir)):
+        shutil.rmtree(datanet2_dir)
+    #endregion initialization
+    
+    #region augmentation
+    if settings.augment:
+        augment.augment_data(data_dir=settings.data_dir, augtypes_in="n",output_dir=datainput_dir)
+    else:
+        augment.augment_data(data_dir=settings.data_dir,augtypes_in = None, output_dir=datainput_dir)
+    
+    create_json_file(datainput_dir)
+    #endregion augmentation
+      
+    try:
+        if (args.mode == "train" and not settings.labels_available):
+            raise IOError()
+    except IOError:  
+        print("Selected mode is training. Cannot proceed without target labels")
+    
+    #region generating train/test datasets 
+    data_net = dataset_generator(input_dim, data_dir=datainput_dir,
+                                 train_test_split=args.train_test_split, 
+                                 no_output_classes=settings.no_output_classes)
+    create_json_file(datainput_dir)
+    #endregion generating train/test datasets
+    
+    #region preprocessing
+    preprocess_data(settings.data_dir)
+    #endregion preprocessing
+if __name__ == "__main__":
+    main()
 
 
-#region DATA GENERATOR
-print("- Starting data generator for network {} ...".format(args.network))
-
-data_net = DatasetGenerator(input_dim, data_path=training_datapath, batch_size=args.batch_size,
-                            train_test_split=args.train_test_split, validate_test_split=args.validate_test_split, 
-                            number_output_classes=args.number_output_classes,random_seed=args.random_seed,
-                            augment=settings.AUGMENT)
-data_net.print_info()
-print("- Data generator for network {} complete.".format(args.network))
-#endregion DATA GENERATOR
-
-
+"""
 #region NETWORK: CREATE_MODEL
 print("- Creating network {} model ...".format(args.network))
 input_dim = (args.tile_height, args.tile_width,args.tile_depth, args.number_input_channels)
@@ -114,3 +149,4 @@ best_model.compile(loss="binary_crossentropy", metrics=["accuracy"],optimizer="a
 K.models.save_model(best_model, best_model_name, include_optimizer=False)
 print("- Saving network {} model complete.".format(args.network))
 #endregion NETWORK: SAVE MODEL
+"""

@@ -1,6 +1,7 @@
 from email.mime import image
 import os
 import json
+from pickle import NONE
 import settings
 
 import numpy as np
@@ -30,10 +31,11 @@ def get_fileslist(datainput_dir):
 		
         else: 
                 no_files = experiment_data["numTesting"]
-                if settings.labels_available:
-                        fnames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
-                                          os.path.join(experiment_data["testing"][idx]["label"])]
-                else: fnames[idx] = [os.path.join(experiment_data["testing"][idx]["image"])]
+                for idx in range(no_files):
+                        if settings.labels_available:
+                                fnames[idx] = [os.path.join(experiment_data["testing"][idx]["image"]),
+                                               os.path.join(experiment_data["testing"][idx]["label"])]
+                        else: fnames[idx] = [os.path.join(experiment_data["testing"][idx]["image"])]
         return fnames
 #endregion get files list from json file
 
@@ -43,8 +45,6 @@ def get_fileslist(datainput_dir):
 def normalize_images(img_fname, msk_fname):
         
         img_file = sitk.ReadImage(img_fname, imageIO=settings.imgio_type)
-        msk_file = sitk.ReadImage(msk_fname, imageIO=settings.imgio_type)
-        
         img_arr = sitk.GetArrayFromImage(img_file)
         
         imgnorm_arr = (img_arr - np.min(img_arr)) / (np.max(img_arr) - np.min(img_arr))
@@ -52,6 +52,10 @@ def normalize_images(img_fname, msk_fname):
 
         imgnorm_file = sitk.GetImageFromArray(imgnorm_arr)
         imgnorm_file.CopyInformation(img_file)
+        
+        if (not msk_fname==None) and settings.labels_available:
+                msk_file = sitk.ReadImage(msk_fname, imageIO=settings.imgio_type)
+        else: msk_file = None
         
         return imgnorm_file, msk_file
 #endregion normalize and adjust input images
@@ -100,61 +104,64 @@ def preprocess_data(data_dir):
         for idx in range(0,len(files_list)):
                 
                 img_fname = files_list[idx][0]
-                msk_fname = files_list[idx][1]
-                if not (os.path.exists(img_fname) or os.path.exists(msk_fname)): continue
                 
+                if not(args.mode == "test") or settings.labels_available:
+                        msk_fname = files_list[idx][1]
+                        if not (os.path.exists(img_fname) or os.path.exists(msk_fname)): continue
+                else:
+                        msk_fname == None
+        
                 img_file, msk_file = normalize_images(img_fname, msk_fname)
                 
-                #region split images
+                #region split and flip images only
                 mid_x = int(img_file.GetSize()[0]/2)
                 
                 img_file_L = img_file[0:mid_x,:,:]
-                msk_file_L = msk_file[0:mid_x,:,:]
-                
                 img_file_Rpf = img_file[mid_x:(mid_x*2),:,:]
-                msk_file_Rpf = msk_file[mid_x:(mid_x*2),:,:]
-                #endregion split images
                 
-                #region flip only right halves
                 img_arr_R = sitk.GetArrayFromImage(img_file_Rpf)
-                msk_arr_R = sitk.GetArrayFromImage(msk_file_Rpf)
-                
                 img_arr_R = img_arr_R[:,:,::-1]
-                msk_arr_R = msk_arr_R[:,:,::-1]
-                
                 img_file_R = sitk.GetImageFromArray(img_arr_R)
-                msk_file_R = sitk.GetImageFromArray(msk_arr_R)
-                
                 img_file_R.CopyInformation(img_file_Rpf)
-                msk_file_R.CopyInformation(msk_file_Rpf)
-                #endregion flip only right halves
+                #endregion split and flip images only
                 
-                [bb_Lbot, bb_Lup] = get_roi(msk_file_L, reserve=4)
-                [bb_Rbot, bb_Rup] = get_roi(msk_file_R, reserve=4)
+                if not(args.mode == "test") or settings.labels_available:
+                        #region split and flip labels and get roi
+                        msk_file_L = msk_file[0:mid_x,:,:]
+                        msk_file_Rpf = msk_file[mid_x:(mid_x*2),:,:]
                 
-                #region generate and save net2 labels
-                img_file_Lcrp = img_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]]
-                msk_file_Lcrp = msk_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]]
+                        msk_arr_R = sitk.GetArrayFromImage(msk_file_Rpf)
+                        msk_arr_R = msk_arr_R[:,:,::-1]
+                        msk_file_R = sitk.GetImageFromArray(msk_arr_R)
+                        msk_file_R.CopyInformation(msk_file_Rpf)
+                        
+                        [bb_Lbot, bb_Lup] = get_roi(msk_file_L, reserve=4)
+                        [bb_Rbot, bb_Rup] = get_roi(msk_file_R, reserve=4)
+                        #endregion split and flip labels only and get roi
                 
-                img_file_Rcrp = img_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
-                msk_file_Rcrp = msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
+                        #region generate and save net2 labels
+                        img_file_Lcrp = img_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]]
+                        msk_file_Lcrp = msk_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]]
                 
-                sitk.WriteImage(img_file_Lcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
-                sitk.WriteImage(msk_file_Lcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
+                        img_file_Rcrp = img_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
+                        msk_file_Rcrp = msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
                 
-                sitk.WriteImage(img_file_Rcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
-                sitk.WriteImage(msk_file_Rcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))
-                #endregion generate and save net2 labels
+                        sitk.WriteImage(img_file_Lcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
+                        sitk.WriteImage(msk_file_Lcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
                 
-                #region generate and save net1 labels
-                msk_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]] =1
-                msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]] =1
+                        sitk.WriteImage(img_file_Rcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
+                        sitk.WriteImage(msk_file_Rcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))
+                        #endregion generate and save net2 labels
                 
-                sitk.WriteImage(img_file_L,os.path.join(datanet1_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
-                sitk.WriteImage(msk_file_L,os.path.join(datanet1_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
+                        #region generate and save net1 labels
+                        msk_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]] =1
+                        msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]] =1
                 
-                sitk.WriteImage(img_file_R,os.path.join(datanet1_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
-                sitk.WriteImage(msk_file_R,os.path.join(datanet1_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))  
-                #endregion generate and save net1 labels
+                        sitk.WriteImage(img_file_L,os.path.join(datanet1_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
+                        sitk.WriteImage(msk_file_L,os.path.join(datanet1_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
+                
+                        sitk.WriteImage(img_file_R,os.path.join(datanet1_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
+                        sitk.WriteImage(msk_file_R,os.path.join(datanet1_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))  
+                        #endregion generate and save net1 labels
                       
         #endregion prepare inputs for net 1 -localize and net 2 - segment
