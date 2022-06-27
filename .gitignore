@@ -1,3 +1,6 @@
 *.pyc
 __pycache__
 __pycache__/*.pyc
+preprocess_old/*
+notebooks
+eval_old
