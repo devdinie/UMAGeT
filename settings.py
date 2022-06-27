@@ -36,6 +36,8 @@ testdata_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"testdat
 
 labels_available = os.path.exists(os.path.join(data_dir,"target_labels"))
 augdata_dname = "data_input" 
+net1data_dname= "data_net1_loc"
+net2data_dname= "data_net2_seg"
 #endregion define mode and main directory paths
 
 #region image related settings

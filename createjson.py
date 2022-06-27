@@ -28,7 +28,7 @@ def create_json_file(data_path):
     
     if not args.mode == "test":
         json_dict['numTraining']= no_cases
-        json_dict['training']   = [{'image': os.path.join(brains_dir,img_fname),
+        json_dict['training']   = [{"image": os.path.join(brains_dir,img_fname),
                                     "label": os.path.join(labels_dir,img_fname.replace("_t1_","_labels_"))} for img_fname in os.listdir(brains_dir)]
     else:
         json_dict['numTesting'] = no_cases
