@@ -1,14 +1,15 @@
 from email.mime import image
 import os
 import json
-from pickle import NONE
-import settings
-
 import numpy as np
+import settings
 import SimpleITK as sitk
 
+from scipy import ndimage
 from skimage import exposure
-from argparser  import args
+from argparser import args
+from augment import resample_img
+
 
 #region get files list from json file
 def get_fileslist(datainput_dir):
@@ -145,18 +146,43 @@ def preprocess_data(data_dir):
                 
                         img_file_Rcrp = img_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
                         msk_file_Rcrp = msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
+                        
+                        img_size_crp = tuple(int(val/6) for val in settings.img_size)
+                        
+                        img_file_Lcrp, msk_file_Lcrp = resample_img(img_size_crp, img_file_Lcrp, msk_file_Lcrp)
+                        img_file_Rcrp, msk_file_Rcrp = resample_img(img_size_crp, img_file_Rcrp, msk_file_Rcrp)
+                        
+                        #region threshold cropped labels and close holes
+                        msk_arr_Lcrp = sitk.GetArrayFromImage(msk_file_Lcrp)
+                        msk_arr_Rcrp = sitk.GetArrayFromImage(msk_file_Rcrp)
+                        
+                        msk_arr_Lcrp[msk_arr_Lcrp>0] =1
+                        msk_arr_Rcrp[msk_arr_Rcrp>0] =1
+                        
+                        msk_arr_Lcrp = ndimage.binary_closing(msk_arr_Lcrp).astype(int)
+                        msk_arr_Rcrp = ndimage.binary_closing(msk_arr_Rcrp).astype(int)
+                        
+                        msk_file_Lcrpt = sitk.GetImageFromArray(msk_arr_Lcrp)
+                        msk_file_Rcrpt = sitk.GetImageFromArray(msk_arr_Rcrp)
+                        
+                        msk_file_Lcrpt.CopyInformation(msk_file_Lcrp)
+                        msk_file_Rcrpt.CopyInformation(msk_file_Rcrp)
+                        #endregion threshold cropped labels and close holes
+                        
+                        sitk.WriteImage(img_file_Lcrp ,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
+                        sitk.WriteImage(msk_file_Lcrpt,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
                 
-                        sitk.WriteImage(img_file_Lcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
-                        sitk.WriteImage(msk_file_Lcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
-                
-                        sitk.WriteImage(img_file_Rcrp,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
-                        sitk.WriteImage(msk_file_Rcrp,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))
+                        sitk.WriteImage(img_file_Rcrp ,os.path.join(datanet2_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_R_")))
+                        sitk.WriteImage(msk_file_Rcrpt,os.path.join(datanet2_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_R_")))
                         #endregion generate and save net2 labels
                 
                         #region generate and save net1 labels
                         msk_file_L[bb_Lbot[0]:bb_Lup[0], bb_Lbot[1]: bb_Lup[1], bb_Lbot[2]: bb_Lup[2]] =1
                         msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]] =1
-                
+                        
+                        img_file_L, msk_file_L = resample_img(settings.img_size,img_file_L,msk_file_L)
+                        img_file_R, msk_file_R = resample_img(settings.img_size,img_file_R,msk_file_R )
+                        
                         sitk.WriteImage(img_file_L,os.path.join(datanet1_dir,"brains",os.path.basename(img_fname).replace("_t1_","_t1_L_")))
                         sitk.WriteImage(msk_file_L,os.path.join(datanet1_dir,"target_labels",os.path.basename(img_fname).replace("_t1_","_labels_L_")))
                 
