@@ -5,11 +5,10 @@ import augment
 import settings
 import tensorflow as tf 
 
-from tensorflow import keras as K
-
 from argparser  import args
+from tensorflow import keras as K
 from preprocess import preprocess_data
-from dataloader import dataset_generator
+from UMAGeT.eval_old.dataloader import dataset_generator
 from createjson import create_json_file
 
 #from model import dice_coef, soft_dice_coef, dice_loss, unet_3d
