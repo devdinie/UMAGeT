@@ -30,9 +30,12 @@ mode = "train"
 augment = False
 is_overwrite = True
 
+visualize_training = True
+
 root_dir = os.path.join(os.path.dirname(__file__),"..")
 data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),"data/")
 testdata_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"testdata/")
+visualizations_dir =  os.path.join(os.path.dirname(os.path.dirname(__file__)),"visualizations")
 
 labels_available = os.path.exists(os.path.join(data_dir,"target_labels"))
 augdata_dname = "data_input" 

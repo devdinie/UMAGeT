@@ -10,14 +10,7 @@ import tensorflow as tf
 from argparser import args
 
 import nibabel as nib
-"""
-import scipy
-import numpy   as np
-import nibabel as nib
 
-from scipy.ndimage     import rotate
-from skimage.transform import resize
-"""
 class dataset_generator:
     
     def __init__(self, input_dim,
@@ -46,8 +39,7 @@ class dataset_generator:
             self.ds_train, self.ds_validate, self.ds_test = self.get_train_dataset()
         else:
             self.ds_test = self.get_test_dataset()
-    
-            
+
     #region create dictionary with dataset information
     def create_file_list(self):
          
@@ -94,29 +86,25 @@ class dataset_generator:
         msk_file = sitk.ReadImage(msk_fname, imageIO=settings.imgio_type)
         
         img_arr = sitk.GetArrayFromImage(img_file)
-        msk_arr = sitk.GetArrayFromImage(img_file)
+        msk_arr = sitk.GetArrayFromImage(msk_file)
       
         img_arr = np.expand_dims(img_arr, -1)
         msk_arr = np.expand_dims(msk_arr, -1)
-        print(img_arr.shape, msk_arr.shape)
+
         return img_arr, msk_arr
 
-    """
     def get_train(self):
-        # Return train dataset
-    
+        # Return train dataset 
         return self.ds_train
-
+ 
     def get_test(self):
         # Return test dataset
-        
         return self.ds_test
     
     def get_validate(self):
         # Return validation dataset
+        return self.ds_validate
 
-        return self.ds_val
-    """
     #region get training dataset
     """
     # Get number of training data based on train_test_split
@@ -130,6 +118,7 @@ class dataset_generator:
         ds = tf.data.Dataset.range(self.no_files).shuffle(self.no_files, self.random_seed)  # Shuffle the dataset
         
         ds_train = ds.take(self.no_train).shuffle(self.no_train, self.shard)  # Reshuffle based on shard
+        
         ds_val_test = ds.skip(self.no_train)
         
         ds_test = ds_val_test.skip(self.no_validate)
@@ -144,7 +133,7 @@ class dataset_generator:
         
         ds_test = ds_test.map(lambda x: tf.py_function(self.read_nifti_file, [x, False], [tf.float32, tf.float32]), 
                                 num_parallel_calls=tf.data.experimental.AUTOTUNE)
-                  
+              
         ds_train = ds_train.repeat()
         ds_train = ds_train.batch(self.batch_size)
         ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
@@ -152,7 +141,7 @@ class dataset_generator:
         batch_size_val = 2
         ds_validate = ds_validate.batch(batch_size_val)
         ds_validate = ds_validate.prefetch(tf.data.experimental.AUTOTUNE)
-        
+         
         batch_size_test = 1
         ds_test = ds_test.batch(batch_size_test)
         ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
@@ -176,6 +165,6 @@ class dataset_generator:
         
 if __name__ == "__main__":
     # Load the dataset    
-    data = dataset_generator(input_dim, data_dir=data_dir, batch_size=args.batch_size,
+    data = dataset_generator(input_dim=settings.img_size, data_dir=settings.data_dir, batch_size=args.batch_size,
                              train_test_split=args.train_test_split, validate_test_split=args.validate_test_split,
                              number_output_classes=args.number_output_classes, random_seed=args.random_seed)

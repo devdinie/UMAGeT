@@ -34,10 +34,11 @@ parser.add_argument("--augment",
                          +"Set to --augment True  if augmented data needs to be generated from input data\n"
                          +"True (as defined in settings) by default")
 
-parser.add_argument("--network", default=2,
-                    help="The network used within the given mode\n"
-                    +"Input: --network 1 for localization\n" 
-                    +"       --network 2 for segmentation\n")
+parser.add_argument("--network", default="all",
+                    help="The network(s) used in the given mode\n"
+                    +"Input: --network all -for both localization and segmentation\n" 
+                    +"Input: --network 1   -for localization\n" 
+                    +"       --network 2   -for segmentation\n")
 
 parser.add_argument("--epochs", type=int, default=settings.epochs,
                     help="Number of epochs to train the network")

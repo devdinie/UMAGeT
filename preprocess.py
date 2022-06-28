@@ -147,7 +147,7 @@ def preprocess_data(data_dir):
                         img_file_Rcrp = img_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
                         msk_file_Rcrp = msk_file_R[bb_Rbot[0]:bb_Rup[0], bb_Rbot[1]: bb_Rup[1], bb_Rbot[2]: bb_Rup[2]]
                         
-                        img_size_crp = tuple(int(val/6) for val in settings.img_size)
+                        img_size_crp = settings.img_size #tuple(int(val/6) for val in settings.img_size)
                         
                         img_file_Lcrp, msk_file_Lcrp = resample_img(img_size_crp, img_file_Lcrp, msk_file_Lcrp)
                         img_file_Rcrp, msk_file_Rcrp = resample_img(img_size_crp, img_file_Rcrp, msk_file_Rcrp)

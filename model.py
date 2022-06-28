@@ -1,3 +1,4 @@
+import settings
 import tensorflow as tf
 
 from argparser  import args
@@ -33,10 +34,10 @@ def dice_loss(target, prediction, axis=(1, 2, 3), smooth=0.0001):
 
     return dice_loss
 
-def unet_3d(input_dim, filters=args.filters,
-            number_output_classes=args.number_output_classes,
-            use_upsampling=args.use_upsampling,
-            concat_axis=-1, model_name=args.saved_model1_name):
+def unet_3d(input_dim, filters=settings.filters,
+            no_output_classes=args.output_classes,
+            use_upsampling=settings.use_upsampling,
+            concat_axis=-1, model_name=settings.net2_seg_modelname):
 
             def ConvolutionBlock(x, name, filters, params):
                 x = K.layers.Conv3D(filters=filters, **params, name=name+"_conv0")(x)
@@ -114,13 +115,10 @@ def unet_3d(input_dim, filters=args.filters,
             convOut = ConvolutionBlock(concatA, "convOut", filters, params)
 
             prediction = K.layers.Conv3D(name="PredictionMask",
-                                 filters=number_output_classes,
+                                 filters=no_output_classes,
                                  kernel_size=(1, 1, 1),
                                  activation="sigmoid")(convOut)
             
             model = K.models.Model(inputs=[inputs], outputs=[prediction],name=model_name)
 
-            if args.print_model:
-                model.summary()
-            
             return model
